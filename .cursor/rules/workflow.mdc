@@ -1,0 +1,36 @@
+---
+description: Flujo de trabajo del agente para ln1_caja_rapida
+globs: ["**/*"]
+---
+
+# Workflow del agente
+
+## Antes de empezar cualquier tarea de desarrollo
+
+1. Leer `issues/ws/activities.json` para conocer el estado actual
+2. Identificar la siguiente actividad `pending` cuyas `dependencies` estén `completed`
+3. Cambiar su estado a `in_progress` antes de escribir código
+
+## Durante el desarrollo
+
+4. Seguir los `acceptanceCriteria` de la actividad como guía
+5. Trabajar subtarea por subtarea en orden
+6. Al completar cada subtarea, ejecutar su comando `validation` y marcarla como `completed`
+
+## Al terminar una actividad
+
+7. Ejecutar tests relacionados con `php artisan test`
+8. Validar estilo con `vendor/bin/pint --test`
+9. Validar tipos con `composer analyse` (PHPStan)
+10. En frontend, validar con `npm run type-check` y `npm run lint`
+11. Actualizar el estado de la actividad a `completed` en `activities.json`
+12. Hacer commit siguiendo Conventional Commits (feat:, fix:, chore:, etc.)
+
+## Reglas adicionales
+
+- Si una actividad está `blocked`, reportar al usuario y pasar a la siguiente disponible
+- No iniciar una actividad si sus dependencias no están `completed`
+- Si se detecta un bug durante el desarrollo, crear una nueva actividad con categoría `bugfix`
+- Al crear archivos nuevos, ubicarlos según la estructura definida en `project.mdc`
+- Probar siempre en contexto mobile-first (viewport de 375px)
+- Al trabajar con el escáner de barras, considerar la API de la cámara del dispositivo

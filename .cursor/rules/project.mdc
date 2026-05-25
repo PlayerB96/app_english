@@ -1,0 +1,50 @@
+---
+description: Reglas generales del proyecto ln1_caja_rapida
+globs: ["**/*"]
+---
+
+# ln1_caja_rapida
+
+## Contexto
+- Tipo: Web Service (Fullstack)
+- Stack: Laravel 13 + Vue 3 (Inertia.js)
+- Descripción: Sistema web móvil de caja rápida para puntos de venta en tiendas. Escaneo de códigos de barras, consulta de precios y procesamiento de cobros.
+
+## Restricciones
+- PHP 8.3+ obligatorio
+- TypeScript estricto en el frontend (no usar `any`)
+- No usar Eloquent fuera de Repositories — los Controllers y Services no deben hacer queries directamente
+- No usar `DB::raw()` salvo casos justificados
+- Toda validación pasa por Form Requests, nunca validar en el Controller
+- No instalar paquetes sin justificación documentada
+
+## Convenciones
+- Idioma del código: inglés (variables, funciones, clases)
+- Idioma de documentación y commits: español
+- Formato de commits: Conventional Commits (feat:, fix:, chore:, docs:, refactor:)
+- Branch principal: main
+- Nombres de rutas: kebab-case (ej: `/punto-de-venta`)
+- Modelos: singular PascalCase (ej: `Product`, `SaleTransaction`)
+- Tablas: plural snake_case (ej: `products`, `sale_transactions`)
+
+## Estructura
+
+```
+app/
+├── Http/Controllers/      → Controladores (delegan a Services)
+├── Http/Requests/          → Form Requests (validación)
+├── Http/Resources/         → API Resources (formato de respuesta)
+├── Http/Middleware/         → Middleware personalizado
+├── Models/                 → Modelos Eloquent
+├── Services/               → Lógica de negocio
+├── Repositories/           → Acceso a datos
+└── Enums/                  → Enumeraciones
+
+resources/js/
+├── Pages/                  → Páginas Vue (Inertia)
+├── Components/             → Componentes reutilizables
+├── Composables/            → Composables Vue 3
+├── Stores/                 → Pinia (estado global)
+├── Layouts/                → Layouts de la app
+└── Services/               → Servicios frontend (scanner, API calls)
+```
