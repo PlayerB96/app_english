@@ -9,12 +9,12 @@
             "category": "arquitectura",
             "status": "pending",
             "priority": "high",
-            "description": "Configurar el proyecto Laravel 12 con Inertia.js y Vue 3. Establecer la estructura de carpetas, configurar base de datos, rutas base, layouts y el entrypoint de la aplicación. Asegurar que el stack completo (PHP + Vite + Vue) funcione end-to-end.",
+            "description": "Configurar el proyecto Laravel 13 con Inertia.js y Vue 3. Establecer la estructura de carpetas, configurar base de datos, rutas base, layouts y el entrypoint de la aplicación. Asegurar que el stack completo (PHP + Vite + Vue) funcione end-to-end.",
             "acceptanceCriteria": [
                 "El proyecto Laravel arranca sin errores con php artisan serve",
-                "Vite compila assets de Vue 3 sin errores con npm run build",
+                "Vite compila assets de Vue 3 sin errores con pnpm run build",
                 "Una página de bienvenida se renderiza correctamente con Inertia + Vue",
-                "La conexión a base de datos MySQL funciona y las migraciones se ejecutan",
+                "La conexión a base de datos SQLite funciona y las migraciones se ejecutan",
                 "Docker Compose levanta app + mysql + redis correctamente"
             ],
             "subtasks": [
@@ -26,9 +26,9 @@
                 },
                 {
                     "id": "WS-001-2",
-                    "title": "Instalar dependencias JS con npm",
+                    "title": "Instalar dependencias JS con pnpm",
                     "status": "pending",
-                    "validation": "npm install && npm run build"
+                    "validation": "pnpm install && pnpm run build"
                 },
                 {
                     "id": "WS-001-3",
@@ -40,7 +40,7 @@
                     "id": "WS-001-4",
                     "title": "Crear layout principal y página de bienvenida con Inertia + Vue",
                     "status": "pending",
-                    "validation": "npm run build && php artisan serve --port=8001 &; sleep 3; curl -s http://localhost:8001 | head -20; kill %1"
+                    "validation": "pnpm run build && php artisan serve --port=8001 &; sleep 3; curl -s http://localhost:8001 | head -20; kill %1"
                 },
                 {
                     "id": "WS-001-5",
@@ -130,7 +130,7 @@
                     "id": "WS-003-3",
                     "title": "Crear páginas Vue de login y dashboard",
                     "status": "pending",
-                    "validation": "npm run build"
+                    "validation": "pnpm run build"
                 },
                 {
                     "id": "WS-003-4",
