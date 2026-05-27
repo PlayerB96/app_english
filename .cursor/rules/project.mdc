@@ -48,3 +48,52 @@ resources/js/
 ├── Layouts/                → Layouts de la app
 └── Services/               → Servicios frontend (scanner, API calls)
 ```
+
+## Flujo de una petición (backend)
+
+```
+HTTP Request
+    → Form Request (validación + mensajes en español)
+    → Controller (orquesta, sin lógica de negocio ni queries)
+    → Service (reglas de negocio, orquestación)
+    → Repository (consultas y persistencia Eloquent)
+    → Model / BD
+
+Respuesta exitosa:
+    → API Resource (formato JSON consistente) o Inertia::render (páginas web)
+
+Errores en peticiones JSON (Accept: application/json):
+    → Exception Handler en bootstrap/app.php (422 validación, 404 no encontrado, 5xx genérico)
+```
+
+- Los bindings RepositoryInterface → implementación concreta viven en `RepositoryServiceProvider`.
+- Los Services dependen de interfaces (`XxxRepositoryInterface`), no de clases concretas de repositorio.
+- Detalle de implementación por capa: ver `code-style.mdc`.
+- Proceso de tareas del agente (activities.json, validaciones, commits): ver `workflow.mdc`.
+
+## Responsabilidad por capa
+
+| Capa | Ubicación | Responsabilidad | No debe contener |
+|------|-----------|-------------------|------------------|
+| **Form Request** | `app/Http/Requests/` | Validar entrada, autorización básica, mensajes en español | Lógica de negocio, queries, formateo de respuesta |
+| **Controller** | `app/Http/Controllers/` | Recibir request validado, llamar al Service, devolver Resource o vista Inertia | Validación inline, Eloquent, reglas de negocio |
+| **Service** | `app/Services/` | Reglas de negocio, orquestar repositorios, excepciones de dominio | Queries Eloquent directas |
+| **Repository** | `app/Repositories/` | CRUD y consultas específicas del modelo | Validación HTTP, respuestas JSON, reglas de negocio complejas |
+| **Model** | `app/Models/` | Relaciones, casts, scopes, fillable | Lógica de flujos completos (ventas, cobros, etc.) |
+| **Resource** | `app/Http/Resources/` | Transformar modelos a JSON; ocultar campos sensibles | Validación, persistencia |
+| **Provider** | `app/Providers/` | Bindings interfaz → implementación (IoC) | Lógica de negocio |
+
+### Repositories (convención)
+
+- `RepositoryInterface` + `BaseRepository`: contrato y CRUD genérico compartido.
+- Por entidad: `XxxRepositoryInterface` (extiende el contrato base) + `XxxRepository` (extiende `BaseRepository`, implementa la interfaz).
+- Métodos que solo aplican a una entidad (ej. `findByEmail`) van en el repositorio concreto y se declaran en su interfaz.
+- `create(array $data)`: el repositorio recibe arrays asociativos compatibles con Eloquent; DTOs u objetos se convierten en el Service antes de llamar al repositorio.
+
+### Ejemplo de cadena (crear usuario)
+
+1. `StoreUserRequest` valida `name`, `email`, `password`.
+2. Controller inyecta `UserService`, pasa `$request->validated()`.
+3. `UserService` aplica reglas (ej. hash de password) y llama a `UserRepositoryInterface::create()`.
+4. `UserRepository` persiste vía `BaseRepository`.
+5. Controller responde con `UserResource::make($user)` o redirect Inertia según el endpoint.
