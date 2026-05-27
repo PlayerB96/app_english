@@ -3,6 +3,11 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,5 +19,46 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (ValidationException $exception, $request): ?JsonResponse {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Error de validacion.',
+                'errors' => $exception->errors(),
+            ], 422);
+        });
+
+        $exceptions->render(function (ModelNotFoundException $exception, $request): ?JsonResponse {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Recurso no encontrado.',
+            ], 404);
+        });
+
+        $exceptions->render(function (\Throwable $exception, $request): ?JsonResponse {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            $status = $exception instanceof HttpExceptionInterface
+                ? $exception->getStatusCode()
+                : 500;
+
+            if ($exception instanceof NotFoundHttpException) {
+                return response()->json([
+                    'message' => 'Recurso no encontrado.',
+                ], 404);
+            }
+
+            return response()->json([
+                'message' => $status >= 500
+                    ? 'Error interno del servidor.'
+                    : ($exception->getMessage() ?: 'Error en la solicitud.'),
+            ], $status);
+        });
     })->create();
