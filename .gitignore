@@ -1,5 +1,6 @@
 /.phpunit.cache
 /node_modules
+/pnpm-workspace.yaml
 /public/build
 /public/hot
 /public/storage
@@ -11,6 +12,7 @@
 .env.example
 .env.backup
 .env.production
+/database/database.sqlite
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
