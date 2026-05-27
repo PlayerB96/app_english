@@ -1,5 +1,6 @@
 /.phpunit.cache
 /node_modules
+/pnpm-workspace.yaml
 /public/build
 /public/hot
 /public/storage
@@ -7,10 +8,12 @@
 /storage/framework/views/*
 !/storage/framework/views/.gitignore
 /vendor
+/issues
 .env
 .env.example
 .env.backup
 .env.production
+/database/database.sqlite
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
