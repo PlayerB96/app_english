@@ -1,13 +1,13 @@
 {
     "project": "ln1_caja_rapida",
     "layer": "web-service",
-    "lastUpdated": "2026-05-25",
+    "lastUpdated": "2026-05-27",
     "activities": [
         {
             "id": "WS-001",
             "title": "Scaffolding y estructura base del proyecto",
             "category": "arquitectura",
-            "status": "pending",
+            "status": "completed",
             "priority": "high",
             "description": "Configurar el proyecto Laravel 13 con Inertia.js y Vue 3. Establecer la estructura de carpetas, configurar base de datos, rutas base, layouts y el entrypoint de la aplicación. Asegurar que el stack completo (PHP + Vite + Vue) funcione end-to-end.",
             "acceptanceCriteria": [
@@ -21,31 +21,31 @@
                 {
                     "id": "WS-001-1",
                     "title": "Instalar dependencias PHP con Composer",
-                    "status": "pending",
+                    "status": "completed",
                     "validation": "composer install && php artisan --version"
                 },
                 {
                     "id": "WS-001-2",
                     "title": "Instalar dependencias JS con pnpm",
-                    "status": "pending",
+                    "status": "completed",
                     "validation": "pnpm install && pnpm run build"
                 },
                 {
                     "id": "WS-001-3",
                     "title": "Configurar archivos base de Laravel (bootstrap, providers, rutas)",
-                    "status": "pending",
+                    "status": "completed",
                     "validation": "php artisan route:list"
                 },
                 {
                     "id": "WS-001-4",
                     "title": "Crear layout principal y página de bienvenida con Inertia + Vue",
-                    "status": "pending",
+                    "status": "completed",
                     "validation": "pnpm run build && php artisan serve --port=8001 &; sleep 3; curl -s http://localhost:8001 | head -20; kill %1"
                 },
                 {
                     "id": "WS-001-5",
                     "title": "Configurar y ejecutar migraciones iniciales",
-                    "status": "pending",
+                    "status": "completed",
                     "validation": "php artisan migrate:status"
                 }
             ],

@@ -54,9 +54,14 @@ globs: ["**/*"]
 - Composables para lógica reutilizable entre componentes
 
 ### Estilos
-- Tailwind CSS como framework principal
-- No usar `<style scoped>` salvo excepciones justificadas
+- Usar Tailwind CSS de forma exclusiva para estilos de UI
+- No usar CSS personalizado ni crear/modificar archivos `.css`
+- No usar `<style>`, `<style scoped>` ni CSS inline (`style=""`)
 - Clases utilitarias de Tailwind en el template
+- Definir y reutilizar estos breakpoints fijos: `mobile` (default, sin prefijo), `tablet` (`md:` = 768px), `desktop` (`lg:` = 1024px)
+- Aplicar diseño mobile-first y escalar solo con `md:` y `lg:` para mantener consistencia
+- No usar `sm:`, `xl:` o `2xl:` salvo excepción documentada en el PR
+- Mantener el mismo patrón en toda la app: base = mobile, `md:` = tablet, `lg:` = desktop
 
 ### TypeScript
 - Strict mode habilitado

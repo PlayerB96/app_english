@@ -6,23 +6,23 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Backend | Laravel | 13.x |
+| Backend | Laravel | 13.11.2 |
 | Frontend | Vue 3 (Composition API) | 3.5.x |
 | Bridge | Inertia.js | 2.x |
 | Estado | Pinia | 3.x |
 | Estilos | Tailwind CSS | 3.4.x |
 | Bundler | Vite | 6.x |
-| Base de datos | MySQL | 8.4 |
+| Base de datos | SQLite | 3.x |
 | Cache | Redis | 7.x |
-| Lenguaje PHP | PHP | 8.3+ |
+| Lenguaje PHP | PHP | 8.4.21 |
 | Lenguaje JS | TypeScript | 5.7+ |
 
 ## Requisitos previos
 
-- PHP 8.3+
+- PHP 8.4.21
 - Composer 2.x
 - Node.js 20+ y npm
-- MySQL 8.x (o Docker)
+- SQLite 3.x (archivo local)
 - Redis (o Docker)
 
 ## Levantar el entorno de desarrollo
