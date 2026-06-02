@@ -12,7 +12,7 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 | Estado | Pinia | 3.x |
 | Estilos | Tailwind CSS | 3.4.x |
 | Bundler | Vite | 6.x |
-| Base de datos | SQLite | 3.x |
+| Base de datos | Microsoft SQL Server | 2022 (driver `sqlsrv`) |
 | Cache | Redis | 7.x |
 | Lenguaje PHP | PHP | 8.4.21 |
 | Lenguaje JS | TypeScript | 5.7+ |
@@ -22,7 +22,8 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 - PHP 8.4.21
 - Composer 2.x
 - Node.js 20+ y npm
-- SQLite 3.x (archivo local)
+- Microsoft SQL Server 2019+ (local o Docker)
+- Extensión PHP `pdo_sqlsrv` y ODBC Driver 18 for SQL Server
 - Redis (o Docker)
 
 ## Levantar el entorno de desarrollo
@@ -33,11 +34,21 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 # Copiar variables de entorno
 cp .env.example .env
 
-# Levantar servicios
+# Levantar servicios (app + SQL Server + Redis)
 docker compose up -d
+
+# Crear la base de datos (primera vez)
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong!Passw0rd' -C \
+  -i /scripts/init-database.sql
+
+# Migraciones (desde el contenedor app o en local con .env apuntando a 127.0.0.1:1433)
+docker compose exec app php artisan migrate
 
 # La app estará disponible en http://localhost:8000
 ```
+
+> Ajusta `MSSQL_SA_PASSWORD` en `.env` o en el shell si cambias la contraseña por defecto del compose.
 
 ### Opción 2: Local
 
@@ -80,6 +91,33 @@ resources/js/
 ├── Layouts/                → Layouts de la app
 └── Services/               → Servicios frontend (scanner, etc.)
 ```
+
+## Configuración: `.env` y `phpunit.xml`
+
+No son alternativas; cumplen roles distintos.
+
+| Archivo | Objetivo |
+|---------|----------|
+| **`.env`** | Cómo corre la aplicación en desarrollo: SQL Server (`ln1_caja_rapida`), sesión, cola, Redis, etc. |
+| **`phpunit.xml`** | Cómo debe comportarse la app **solo mientras ejecutas tests** (`php artisan test` / PHPUnit). |
+
+### Qué hace `phpunit.xml`
+
+1. **Define PHPUnit** — carpetas de tests (`tests/Unit`, `tests/Feature`), cobertura y opciones del runner.
+2. **Fija el entorno de prueba** — al correr tests, las variables en `<php><env>…</env></php>` se aplican **después** de `.env` y tienen prioridad en esa ejecución.
+
+Así los tests no dependen del mismo modo que usas en el navegador:
+
+- `APP_ENV=testing`
+- Caché y sesión en memoria (`array`), cola `sync`, mail simulado
+- Base de datos distinta: `ln1_caja_rapida_test` (no borra datos de `ln1_caja_rapida`)
+- Ajustes de rendimiento solo en tests (ej. `BCRYPT_ROUNDS=4`)
+
+La contraseña y credenciales de SQL Server siguen en **`.env`** (o en **`.env.testing`** si la creas); en `phpunit.xml` no hace falta duplicar secretos.
+
+### Opcional: `.env.testing`
+
+Puedes mover ahí toda la configuración de BD de prueba (`DB_*`) y dejar en `phpunit.xml` solo lo específico del runner y del entorno `testing`. Laravel carga `.env.testing` cuando `APP_ENV=testing`.
 
 ## Comandos útiles
 

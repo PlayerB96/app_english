@@ -7,7 +7,7 @@ globs: ["**/*"]
 
 ## Contexto
 - Tipo: Web Service (Fullstack)
-- Stack: Laravel 13 + Vue 3 (Inertia.js)
+- Stack: Laravel 13 + Vue 3 (Inertia.js) + Microsoft SQL Server (`sqlsrv`)
 - Descripción: Sistema web móvil de caja rápida para puntos de venta en tiendas. Escaneo de códigos de barras, consulta de precios y procesamiento de cobros.
 
 ## Restricciones
@@ -69,7 +69,7 @@ Errores en peticiones JSON (Accept: application/json):
 - Los bindings RepositoryInterface → implementación concreta viven en `RepositoryServiceProvider`.
 - Los Services dependen de interfaces (`XxxRepositoryInterface`), no de clases concretas de repositorio.
 - Detalle de implementación por capa: ver `code-style.mdc`.
-- Proceso de tareas del agente (activities.json, validaciones, commits): ver `workflow.mdc`.
+- Proceso de tareas del agente (`issues/ws/activities.json`: metadatos, `guidance`, `layer`, validaciones, commits): ver `workflow.mdc` y `issues/README.md`.
 
 ## Responsabilidad por capa
 

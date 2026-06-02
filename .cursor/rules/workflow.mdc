@@ -5,32 +5,92 @@ globs: ["**/*"]
 
 # Workflow del agente
 
+Fuente de verdad: `issues/ws/activities.json` (local, en `.gitignore`; no commitear salvo petición explícita).
+
+## Metadatos del archivo (raíz)
+
+| Campo | Uso |
+|-------|-----|
+| `project` | Nombre del repo/proyecto |
+| `layer` | Capa del harness (`web-service`) |
+| `architecture` | Patrón global (ej. `layered-repository-service-inertia`) |
+| `packageManager` | Gestores permitidos (`composer + pnpm`) |
+| `activities` | Lista de actividades ordenadas por dependencias |
+
+Respetar `architecture` y `packageManager` en todo el trabajo; no mezclar patrones ni usar `npm`/`yarn` si el JSON indica `pnpm`.
+
+## Estructura de una actividad
+
+Campos relevantes: `id`, `title`, `category`, `architecture`, `status`, `priority`, `description`, `acceptanceCriteria`, `guidance`, `subtasks`, `dependencies`.
+
+| Campo | Quién lo usa |
+|-------|----------------|
+| `acceptanceCriteria` | Criterios de cierre de la **actividad** completa |
+| `guidance.developer` | Objetivo y referencias de la actividad (contexto humano/Jira) |
+| `guidance.agent` | Reglas breves para el agente a nivel actividad (si existe) |
+| `dependencies` | IDs de actividades que deben estar `completed` antes de empezar |
+
+Categorías habituales: `arquitectura`, `patron-diseno`, `seguridad`, `feature`, `bugfix`.
+
+## Estructura de una subtarea
+
+Campos relevantes: `id`, `title`, `status`, `layer`, `validation`, `guidance`.
+
+| `layer` (subtarea) | Ámbito típico en este proyecto |
+|--------------------|--------------------------------|
+| `infra` | Composer, pnpm, Docker, bootstrap, providers, rate limiting |
+| `http` | Controllers, Form Requests, Resources, Middleware |
+| `data` | Models, migrations, Repositories |
+| `presentation` | Páginas y componentes Vue/Inertia |
+
+### Guidance en subtareas
+
+- **`guidance.agent`**: lista de instrucciones obligatorias para el agente (ej. ejecutar `validation` antes de marcar `completed`, no instalar paquetes sin permiso).
+- **`guidance.developer`**: contexto técnico detallado:
+  - `goal` — objetivo de la subtarea
+  - `files` — rutas a crear o modificar
+  - `examples` — comportamiento esperado
+  - `references` — reglas o docs (`.cursor/rules/*.mdc`, `README.md`)
+  - `avoid` — anti-patrones explícitos
+  - `context` — notas de integración (solo si existe)
+
+Prioridad al implementar: **`guidance.agent`** → **`guidance.developer`** (archivos y goal) → `project.mdc` / `code-style.mdc` → `validation`.
+
 ## Antes de empezar cualquier tarea de desarrollo
 
-1. Leer `issues/ws/activities.json` para conocer el estado actual
-2. Identificar la siguiente actividad `pending` cuyas `dependencies` estén `completed`
-3. Cambiar su estado a `in_progress` antes de escribir código
+1. Leer `issues/ws/activities.json` (metadatos + actividades).
+2. Identificar la siguiente actividad `pending` cuyas `dependencies` estén `completed`.
+3. Revisar `guidance` de la actividad y de la primera subtarea pendiente.
+4. Cambiar el estado de la **actividad** a `in_progress` antes de escribir código.
 
 ## Durante el desarrollo
 
-4. Seguir los `acceptanceCriteria` de la actividad como guía
-5. Trabajar subtarea por subtarea en orden
-6. Al completar cada subtarea, ejecutar su comando `validation` y marcarla como `completed`
+5. Cumplir `acceptanceCriteria` de la actividad como guía de cierre global.
+6. Trabajar **subtarea por subtarea** en orden del JSON; respetar `layer` y no mezclar responsabilidades entre capas.
+7. Seguir `guidance.agent` y ubicar cambios según `guidance.developer.files`.
+8. Al completar cada subtarea: ejecutar su comando `validation`; solo entonces marcarla `completed` en `activities.json`.
 
 ## Al terminar una actividad
 
-7. Ejecutar tests relacionados con `php artisan test`
-8. Validar estilo con `vendor/bin/pint --test`
-9. Validar tipos con `composer analyse` (PHPStan)
-10. En frontend, validar con `npm run type-check` y `npm run lint`
-11. Actualizar el estado de la actividad a `completed` en `activities.json`
-12. Hacer commit siguiendo Conventional Commits (feat:, fix:, chore:, etc.)
+9. Ejecutar tests relacionados: `php artisan test`
+10. Estilo PHP: `vendor/bin/pint --test`
+11. Tipos PHP: `composer analyse` (PHPStan)
+12. Frontend: `pnpm run type-check` y `pnpm run lint` (no usar `npm` si `packageManager` indica pnpm)
+13. Actualizar la actividad a `completed` en `activities.json`
+14. Commit con Conventional Commits (`feat:`, `fix:`, `chore:`, etc.)
 
 ## Reglas adicionales
 
-- Si una actividad está `blocked`, reportar al usuario y pasar a la siguiente disponible
-- No iniciar una actividad si sus dependencias no están `completed`
-- Si se detecta un bug durante el desarrollo, crear una nueva actividad con categoría `bugfix`
-- Al crear archivos nuevos, ubicarlos según la estructura definida en `project.mdc`
-- Probar siempre en contexto mobile-first (viewport de 375px)
-- Al trabajar con el escáner de barras, considerar la API de la cámara del dispositivo
+- Si una actividad está `blocked`, reportar al usuario y pasar a la siguiente disponible.
+- No iniciar una actividad si sus `dependencies` no están `completed`.
+- No instalar dependencias (Composer/pnpm) sin aprobación del usuario cuando `guidance` lo indique en `avoid`.
+- Si aparece un bug durante el desarrollo, registrar una actividad nueva con `category`: `bugfix` en `activities.json` (misma estructura).
+- Archivos nuevos según `project.mdc` y las rutas en `guidance.developer.files`.
+- Probar en contexto **mobile-first** (viewport 375px).
+- Escáner de barras: considerar API de cámara del dispositivo.
+- Sincronización con Jira: skill `activities-to-jira` con el ID de actividad (ej. `WS-003`); no modificar `activities.json` durante esa sync salvo petición explícita.
+
+## Convención de IDs
+
+- **WS-XXX**: actividad web-service (fullstack)
+- **WS-XXX-N**: subtarea (ej. `WS-003-1`)
