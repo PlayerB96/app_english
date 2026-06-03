@@ -11,4 +11,9 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         parent::__construct($model);
     }
+
+    public function findByEmail(string $email): ?User
+    {
+        return $this->model->newQuery()->where('email', $email)->first();
+    }
 }

@@ -14,6 +14,7 @@ class UserResource extends BaseJsonResource
             'attributes' => [
                 'name' => $this->resource->name,
                 'email' => $this->resource->email,
+                'role' => $this->resource->role->value,
                 'created_at' => $this->resource->created_at?->toISOString(),
             ],
         ];
