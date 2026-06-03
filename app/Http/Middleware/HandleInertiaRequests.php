@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\MobileUser;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -16,14 +17,22 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user() !== null ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'role' => $request->user()->role->value,
+                'user' => $user instanceof MobileUser ? [
+                    'code' => $user->code,
+                    'name' => $user->name,
+                    'companyCode' => $user->companyCode,
+                    'branchCode' => $user->branchCode,
+                    'exchangeRate' => $user->exchangeRate,
+                    'roleCode' => $user->roleCode,
+                    'roleName' => $user->roleName,
+                    'branchName' => $user->branchName,
+                    'branchSigla' => $user->branchSigla,
+                    'role' => $user->role->value,
                 ] : null,
             ],
             'flash' => [

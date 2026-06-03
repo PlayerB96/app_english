@@ -40,7 +40,7 @@ Campos relevantes: `id`, `title`, `status`, `layer`, `validation`, `guidance`.
 |--------------------|--------------------------------|
 | `infra` | Composer, pnpm, Docker, bootstrap, providers, rate limiting |
 | `http` | Controllers, Form Requests, Resources, Middleware |
-| `data` | Models, migrations, Repositories |
+| `data` | Models, Repositories (SPs), DTOs |
 | `presentation` | Páginas y componentes Vue/Inertia |
 
 ### Guidance en subtareas
@@ -84,6 +84,8 @@ Prioridad al implementar: **`guidance.agent`** → **`guidance.developer`** (arc
 - Si una actividad está `blocked`, reportar al usuario y pasar a la siguiente disponible.
 - No iniciar una actividad si sus `dependencies` no están `completed`.
 - No instalar dependencias (Composer/pnpm) sin aprobación del usuario cuando `guidance` lo indique en `avoid`.
+- **No crear migraciones** ni tablas Laravel en la BD legacy; usar SPs en Repositories.
+- **No** cambiar `SESSION_DRIVER`/`CACHE_STORE` a `database` en `.env` de producción legacy.
 - Si aparece un bug durante el desarrollo, registrar una actividad nueva con `category`: `bugfix` en `activities.json` (misma estructura).
 - Archivos nuevos según `project.mdc` y las rutas en `guidance.developer.files`.
 - Probar en contexto **mobile-first** (viewport 375px).

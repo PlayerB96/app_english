@@ -30,6 +30,9 @@ WORKDIR /var/www/html
 
 COPY . .
 
+RUN mkdir -p storage/framework/sessions storage/framework/cache/data storage/framework/testing bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader \
     && pnpm install --frozen-lockfile \
     && pnpm run build

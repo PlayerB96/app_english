@@ -3,14 +3,11 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\StoreUserRequest;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class RequestTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();

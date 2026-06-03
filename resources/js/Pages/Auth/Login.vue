@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { useForm } from "@inertiajs/vue3";
+import { Eye, EyeOff } from "@lucide/vue";
+import { ref } from "vue";
 
 const form = useForm({
-    email: "",
+    username: "",
     password: "",
     remember: false,
 });
+
+const showPassword = ref(false);
 
 function submit(): void {
     form.post("/login", {
         onFinish: () => form.reset("password"),
     });
+}
+
+function togglePasswordVisibility(): void {
+    showPassword.value = !showPassword.value;
 }
 </script>
 
@@ -31,25 +39,26 @@ function submit(): void {
                 <form class="space-y-5" @submit.prevent="submit">
                     <div>
                         <label
-                            for="email"
+                            for="username"
                             class="block text-sm font-medium text-gray-700 mb-1"
                         >
-                            Correo electrónico
+                            Usuario
                         </label>
                         <input
-                            id="email"
-                            v-model="form.email"
-                            type="email"
-                            autocomplete="email"
+                            id="username"
+                            v-model="form.username"
+                            type="text"
+                            autocomplete="username"
+                            maxlength="20"
                             required
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-                            :class="{ 'border-red-500': form.errors.email }"
+                            :class="{ 'border-red-500': form.errors.username }"
                         />
                         <p
-                            v-if="form.errors.email"
+                            v-if="form.errors.username"
                             class="mt-1 text-sm text-red-600"
                         >
-                            {{ form.errors.email }}
+                            {{ form.errors.username }}
                         </p>
                     </div>
 
@@ -60,15 +69,27 @@ function submit(): void {
                         >
                             Contraseña
                         </label>
-                        <input
-                            id="password"
-                            v-model="form.password"
-                            type="password"
-                            autocomplete="current-password"
-                            required
-                            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-                            :class="{ 'border-red-500': form.errors.password }"
-                        />
+                        <div class="relative">
+                            <input
+                                id="password"
+                                v-model="form.password"
+                                :type="showPassword ? 'text' : 'password'"
+                                autocomplete="current-password"
+                                maxlength="15"
+                                required
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-11 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                                :class="{ 'border-red-500': form.errors.password }"
+                            />
+                            <button
+                                type="button"
+                                class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                                :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                @click="togglePasswordVisibility"
+                            >
+                                <EyeOff v-if="showPassword" class="h-5 w-5" />
+                                <Eye v-else class="h-5 w-5" />
+                            </button>
+                        </div>
                         <p
                             v-if="form.errors.password"
                             class="mt-1 text-sm text-red-600"

@@ -4,16 +4,14 @@ namespace Tests\Feature;
 
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ResourceTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_user_resource_returns_consistent_json_structure(): void
     {
-        $user = User::factory()->create([
+        $user = User::factory()->make([
+            'id' => 1,
             'name' => 'Maria',
             'email' => 'maria@example.com',
         ]);

@@ -20,9 +20,6 @@ docker compose -f "${COMPOSE_FILE}" build app
 echo "==> Reiniciando contenedor..."
 docker compose -f "${COMPOSE_FILE}" up -d
 
-echo "==> Ejecutando migraciones..."
-docker compose -f "${COMPOSE_FILE}" exec -T app php artisan migrate --force
-
 echo "==> Cacheando configuración..."
 docker compose -f "${COMPOSE_FILE}" exec -T app php artisan config:cache
 

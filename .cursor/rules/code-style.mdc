@@ -1,5 +1,5 @@
 ---
-description: Reglas de estilo de código para Laravel 12 + Vue 3
+description: Reglas de estilo de código para Laravel 13 + Vue 3
 globs: ["**/*"]
 ---
 
@@ -14,42 +14,52 @@ globs: ["**/*"]
 - Un método público por acción; preferir Resource Controllers (index, store, show, update, destroy)
 
 ### Services
-- Una clase por dominio de negocio (ej: `ProductService`, `SaleService`)
+- Una clase por dominio de negocio (ej: `AuthService`, `ProductService`)
 - Inyección de dependencias por constructor
-- Retornar DTOs o modelos, nunca arrays genéricos
-- Manejar excepciones de negocio con excepciones custom
+- Retornar DTOs o modelos de dominio, nunca arrays genéricos sin tipar
+- Manejar excepciones de negocio con excepciones custom o `ValidationException` con mensajes en español
 
 ### Repositories
-- Encapsulan todas las queries Eloquent
-- Interfaz + implementación para facilitar testing
-- Los Services consumen Repositories, nunca acceden a Eloquent directamente
+- **Stored procedures**: encapsular `EXEC` en Repositories; declarar en interfaz
+- Eloquent solo para tablas legacy existentes y solo dentro de Repositories
+- Interfaz + implementación para facilitar testing (mock en Feature tests)
+- Los Services consumen Repositories, nunca acceden a `DB::` directamente
 
-### Modelos
+### Autenticación
+- `MobileUser` implementa `Authenticatable`; no extiende Eloquent
+- No usar `Auth::login()` con modelos Eloquent contra BD legacy para el login POS
+- Rol POS permitido: `MobileRoleCode::CajaRapida` (`00005`)
+
+### Modelos Eloquent (legacy / tests)
 - Definir `$fillable` explícitamente, nunca usar `$guarded = []`
 - Definir casts para tipos complejos
 - Relaciones tipadas con return types
-- Scopes para queries reutilizables
 
 ### Validación
 - Form Requests para toda validación
 - Mensajes de error en español configurados en `lang/es/validation.php`
 - Rules personalizadas en `app/Rules/`
+- Login: `username` max 20, `password` max 15 (límites del SP)
 
 ### Migraciones
-- Nombres descriptivos (ej: `create_products_table`, `add_barcode_to_products`)
-- Siempre definir `down()` para rollback
-- Foreign keys explícitas con `constrained()` y `cascadeOnDelete()` donde aplique
+
+No se usan migraciones Laravel. El esquema legacy lo mantiene el DBA; la app accede vía stored procedures en Repositories.
 
 ## Vue 3 / TypeScript
 
 ### Componentes
 - Composition API con `<script setup lang="ts">` obligatorio
 - Props tipadas con `defineProps<{}>()` (no runtime props)
-- Emits tipados con `defineEmits<{}>()` 
+- Emits tipados con `defineEmits<{}>()`
 - Un componente por archivo, nombrado en PascalCase
 
+### Iconos
+- Usar **@lucide/vue** (`import { Eye, EyeOff } from "@lucide/vue"`)
+- No añadir Font Awesome, Heroicons u otras librerías sin justificación
+
 ### Estado
-- Pinia para estado global (autenticación, carrito, sesión de venta)
+- Pinia para estado global (carrito, sesión de venta)
+- Datos de usuario autenticado: `usePage().props.auth.user` (tipado en `resources/js/types/auth.ts`)
 - `ref()` / `reactive()` para estado local del componente
 - Composables para lógica reutilizable entre componentes
 
@@ -58,10 +68,8 @@ globs: ["**/*"]
 - No usar CSS personalizado ni crear/modificar archivos `.css`
 - No usar `<style>`, `<style scoped>` ni CSS inline (`style=""`)
 - Clases utilitarias de Tailwind en el template
-- Definir y reutilizar estos breakpoints fijos: `mobile` (default, sin prefijo), `tablet` (`md:` = 768px), `desktop` (`lg:` = 1024px)
-- Aplicar diseño mobile-first y escalar solo con `md:` y `lg:` para mantener consistencia
-- No usar `sm:`, `xl:` o `2xl:` salvo excepción documentada en el PR
-- Mantener el mismo patrón en toda la app: base = mobile, `md:` = tablet, `lg:` = desktop
+- Breakpoints fijos: mobile (default), `md:` (768px), `lg:` (1024px)
+- Diseño mobile-first; no usar `sm:`, `xl:` o `2xl:` salvo excepción documentada
 
 ### TypeScript
 - Strict mode habilitado

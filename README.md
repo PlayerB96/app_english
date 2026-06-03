@@ -1,190 +1,190 @@
 # ln1_caja_rapida
 
-Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite escanear códigos de barras, consultar precios y procesar cobros rápidamente, similar a los sistemas POS de establecimientos como Ripley o Saga.
+Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite escanear códigos de barras, consultar precios y procesar cobros rápidamente.
 
 ## Stack tecnológico
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Backend | Laravel | 13.11.2 |
+| Backend | Laravel | 13.11.x |
 | Frontend | Vue 3 (Composition API) | 3.5.x |
 | Bridge | Inertia.js | 2.x |
 | Estado | Pinia | 3.x |
 | Estilos | Tailwind CSS | 3.4.x |
+| Iconos | @lucide/vue | 1.x |
 | Bundler | Vite | 6.x |
-| Base de datos | Microsoft SQL Server | 2022 (driver `sqlsrv`) |
-| Cache | Redis | 7.x |
-| Lenguaje PHP | PHP | 8.4.21 |
+| Base de datos | Microsoft SQL Server (legacy) | driver `sqlsrv` |
+| Gestor JS | pnpm | 9+ |
+| Lenguaje PHP | PHP | **8.4.21** |
 | Lenguaje JS | TypeScript | 5.7+ |
 
 ## Requisitos previos
 
 - PHP 8.4.21
 - Composer 2.x
-- Node.js 20+ y pnpm
-- Microsoft SQL Server 2019+ (local o Docker)
+- Node.js 20+ y **pnpm**
+- Microsoft SQL Server accesible en red (BD legacy del cliente)
 - Extensión PHP `pdo_sqlsrv` y ODBC Driver 18 for SQL Server
-- Redis (o Docker)
+- Docker (opcional: dev con SQL Server embebido; prod solo app)
+
+## Arquitectura de datos
+
+- El esquema vive en **SQL Server existente** (ej. `DBINFOSAP_ALM`, `DBINFOSAP_B16`). El DBA lo mantiene.
+- **No hay migraciones Laravel** ni tablas `users`, `sessions`, `cache` en esa BD.
+- Toda la lógica de negocio accede vía **stored procedures** en `app/Repositories/`.
+- Detalle: [`database/README.md`](database/README.md).
+
+## Autenticación
+
+| Aspecto | Detalle |
+|---------|---------|
+| SP | `dbo.usp_movil_valida_usu_pwd_2` |
+| Campos login | **Usuario** (`username`, max 20) y **Contraseña** (max 15) |
+| Rol permitido | `c_role_codi = 00005` (caja rápida) |
+| Sesión | `MobileUser` + `MobileUserProvider` (archivos en `storage/framework/sessions`) |
+| Frontend | [`resources/js/Pages/Auth/Login.vue`](resources/js/Pages/Auth/Login.vue) con toggle ver/ocultar clave (Lucide) |
+
+Flujo: `LoginRequest` → `AuthController` → `AuthService` → `AuthRepository` (EXEC SP) → sesión.
+
+## Configuración `.env`
+
+### Conexión SQL Server (legacy)
+
+```env
+DB_CONNECTION=sqlsrv
+DB_HOST=172.16.0.131      # distinto por servidor en producción
+DB_PORT=1433
+DB_DATABASE=DBINFOSAP_B16
+DB_USERNAME=infosap_user
+DB_PASSWORD=
+DB_ENCRYPT=yes
+DB_TRUST_SERVER_CERTIFICATE=true
+```
+
+### Infra Laravel (sin tablas en SQL Server)
+
+```env
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+```
+
+> **Importante:** no uses `SESSION_DRIVER=database` ni `CACHE_STORE=database` contra la BD legacy; esas tablas no existen.
+
+Copia desde [`.env.example`](.env.example). Plantillas por servidor: [`deploy/env/`](deploy/env/).
 
 ## Levantar el entorno de desarrollo
 
-### Opción 1: Con Docker (recomendado)
+### Opción 1: Local contra SQL Server del cliente (recomendado)
 
 ```bash
-# Copiar variables de entorno
-cp .env.example .env
-
-# Levantar servicios (app + SQL Server + Redis)
-docker compose up -d
-
-# Crear la base de datos (primera vez)
-docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P 'YourStrong!Passw0rd' -C \
-  -i /scripts/init-database.sql
-
-# Migraciones (desde el contenedor app o en local con .env apuntando a 127.0.0.1:1433)
-docker compose exec app php artisan migrate
-
-# La app estará disponible en http://localhost:8000
-```
-
-> Ajusta `MSSQL_SA_PASSWORD` en `.env` o en el shell si cambias la contraseña por defecto del compose.
-
-### Opción 2: Local
-
-```bash
-# Instalar dependencias PHP
 composer install
-
-# Instalar dependencias JS
 pnpm install
 
-# Copiar y configurar variables de entorno
 cp .env.example .env
+# Editar DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 php artisan key:generate
+php artisan config:clear
 
-# Ejecutar migraciones
-php artisan migrate
-
-# Levantar servidor de desarrollo (en terminales separadas)
+# Terminales separadas:
 php artisan serve
 pnpm run dev
 ```
+
+Asegúrate de que existan y sean escribibles:
+
+- `storage/framework/sessions`
+- `storage/framework/cache/data`
+- `bootstrap/cache`
+
+### Opción 2: Docker (dev con SQL Server embebido)
+
+```bash
+cp .env.example .env
+docker compose up -d
+# Solo para pruebas locales; en producción se usa BD externa legacy
+```
+
+> El compose de **desarrollo** incluye SQL Server + Redis. **Producción** usa [`docker-compose.prod.yml`](docker-compose.prod.yml) (solo app, BD externa).
 
 ## Estructura del proyecto
 
 ```
 app/
-├── Http/Controllers/      → Controladores (delegan a Services)
-├── Http/Requests/          → Form Requests (validación)
-├── Http/Resources/         → API Resources (formato de respuesta)
-├── Models/                 → Modelos Eloquent
-├── Services/               → Lógica de negocio
-├── Repositories/           → Acceso a datos (Repository pattern)
-└── Enums/                  → Enumeraciones
+├── Auth/                   → MobileUserProvider (auth por sesión)
+├── Http/Controllers/       → Controladores
+├── Http/Requests/          → Form Requests
+├── Http/Resources/         → API Resources
+├── Http/Middleware/        → Inertia, roles, etc.
+├── Models/                 → MobileUser (sesión), User (legacy/tests)
+├── Services/               → AuthService, dominio
+├── Repositories/           → AuthRepository (SPs), otros repos
+└── Enums/                  → MobileRoleCode, UserRole
+
+deploy/
+├── deploy.sh               → git pull + rebuild (no modifica .env)
+└── env/                    → Plantillas por servidor
 
 resources/js/
-├── Pages/                  → Páginas Vue (Inertia)
-├── Components/             → Componentes reutilizables
-├── Composables/            → Composables Vue 3
-├── Stores/                 → Pinia (estado global)
-├── Layouts/                → Layouts de la app
-└── Services/               → Servicios frontend (scanner, etc.)
+├── Pages/Auth/Login.vue    → Login (usuario + contraseña)
+├── Layouts/AppLayout.vue
+├── types/auth.ts           → Tipos del usuario en sesión
+└── ...
 ```
 
 ## Configuración: `.env` y `phpunit.xml`
 
-No son alternativas; cumplen roles distintos.
-
 | Archivo | Objetivo |
 |---------|----------|
-| **`.env`** | Cómo corre la aplicación en desarrollo: SQL Server (`ln1_caja_rapida`), sesión, cola, Redis, etc. |
-| **`phpunit.xml`** | Cómo debe comportarse la app **solo mientras ejecutas tests** (`php artisan test` / PHPUnit). |
+| **`.env`** | Conexión SQL Server legacy, sesión en archivo, caché local |
+| **`phpunit.xml`** | Entorno de tests (`APP_ENV=testing`, sesión `array`, etc.) |
 
-### Qué hace `phpunit.xml`
-
-1. **Define PHPUnit** — carpetas de tests (`tests/Unit`, `tests/Feature`), cobertura y opciones del runner.
-2. **Fija el entorno de prueba** — al correr tests, las variables en `<php><env>…</env></php>` se aplican **después** de `.env` y tienen prioridad en esa ejecución.
-
-Así los tests no dependen del mismo modo que usas en el navegador:
-
-- `APP_ENV=testing`
-- Caché y sesión en memoria (`array`), cola `sync`, mail simulado
-- Base de datos distinta: `ln1_caja_rapida_test` (no borra datos de `ln1_caja_rapida`)
-- Ajustes de rendimiento solo en tests (ej. `BCRYPT_ROUNDS=4`)
-
-La contraseña y credenciales de SQL Server siguen en **`.env`** (o en **`.env.testing`** si la creas); en `phpunit.xml` no hace falta duplicar secretos.
-
-### Opcional: `.env.testing`
-
-Puedes mover ahí toda la configuración de BD de prueba (`DB_*`) y dejar en `phpunit.xml` solo lo específico del runner y del entorno `testing`. Laravel carga `.env.testing` cuando `APP_ENV=testing`.
+En tests, los repositorios se mockean; no se requiere BD real para auth. Ver `tests/Feature/AuthTest.php`.
 
 ## Despliegue multi-servidor (producción)
 
-La aplicación corre en **10 servidores locales** con Docker. Cada uno apunta a **su propio SQL Server** (`DB_HOST` distinto), pero comparte credenciales, base de datos y esquema. El código se replica igual en todos; la configuración de red vive en el `.env` local de cada máquina (no en Git).
+10 servidores con Docker; mismo código, **`DB_HOST` y `APP_URL` distintos** por nodo.
 
-### Variables: compartidas vs por servidor
+| Variable | Ámbito |
+|----------|--------|
+| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Compartido |
+| `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION` | Compartido (`file` / `file` / `sync`) |
+| **`DB_HOST`**, **`APP_URL`** | **Por servidor** |
 
-| Variable | Ámbito | Descripción |
-|----------|--------|-------------|
-| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_PORT` | Compartido | Misma BD y credenciales en los 10 nodos |
-| `APP_KEY`, `APP_NAME`, `SESSION_DRIVER`, etc. | Compartido | Misma configuración de aplicación |
-| **`DB_HOST`** | **Por servidor** | IP del SQL Server accesible desde ese local |
-| **`APP_URL`** | **Por servidor** | URL/IP donde los móviles acceden a ese servidor |
-
-Plantillas de referencia (sin secretos): [`deploy/env/`](deploy/env/) (`servidor-01.env.example` … `servidor-10.env.example`).
-
-### Bootstrap (primera vez en cada servidor)
+### Bootstrap (primera vez)
 
 ```bash
 git clone <repo> /opt/caja_rapida
 cd /opt/caja_rapida
-
 cp .env.example .env
-# Editar .env: DB_HOST y APP_URL de ESTE servidor
-# Completar DB_PASSWORD y APP_KEY (generar en el host si tienes PHP: php artisan key:generate)
+# Editar DB_HOST, APP_URL, DB_PASSWORD; php artisan key:generate en el host
 
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
 docker compose -f docker-compose.prod.yml exec app php artisan config:cache
 ```
 
-La app quedará en el puerto **8000** del servidor (`APP_URL`).
-
-> **Desarrollo local** sigue usando `docker compose up` (con SQL Server y Redis en contenedor). **Producción** usa `docker-compose.prod.yml` (solo app, BD externa).
-
-### Actualizar los 10 servidores tras un cambio de código
-
-En cada servidor, ejecutar el script de despliegue (no modifica `.env`):
+### Actualizar código (igual en los 10 servidores)
 
 ```bash
-cd /opt/caja_rapida
 ./deploy/deploy.sh
 ```
 
-El script hace: `git pull` → rebuild Docker → `migrate --force` → `config:cache`.
-
-Para automatizar desde una máquina central, puedes usar SSH o Ansible ejecutando el mismo script en cada host.
-
-### Migraciones
-
-Cada servidor tiene su propia instancia de SQL Server con el mismo esquema. Tras desplegar cambios con migraciones, `deploy.sh` ejecuta `migrate --force` en **cada nodo**. Si tu infraestructura usa réplicas con un solo nodo maestro para DDL, coordina con el DBA antes de automatizar.
+Hace: `git pull` → rebuild Docker → `config:cache`. **No sobrescribe `.env`.**
 
 ## Comandos útiles
 
 ```bash
 # Tests
-php artisan test                    # Tests PHP
-pnpm run type-check                 # Verificar tipos TypeScript
+php artisan test
+pnpm run type-check
 
-# Calidad de código
-vendor/bin/pint                     # Formatear PHP (Laravel Pint)
-composer analyse                    # Análisis estático (PHPStan)
-pnpm run lint                       # Lint del frontend
+# Calidad
+vendor/bin/pint
+composer analyse
+pnpm run lint
 
-# Base de datos
-php artisan migrate                 # Ejecutar migraciones
-php artisan migrate:fresh --seed    # Resetear BD con seeders
+# Config
+php artisan config:clear
 ```
 
 ## Tracking de actividades

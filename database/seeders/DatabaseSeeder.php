@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserRole;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -12,20 +10,10 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed the application's database.
+     * Sin seeders: el esquema y datos de negocio vienen de SQL Server legacy (SPs).
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->administrator()->create([
-            'name' => 'Administrador',
-            'email' => 'admin@example.com',
-        ]);
-
-        User::factory()->cashier()->create([
-            'name' => 'Cajero',
-            'email' => 'cajero@example.com',
-        ]);
+        //
     }
 }

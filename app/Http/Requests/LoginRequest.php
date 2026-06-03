@@ -7,8 +7,8 @@ class LoginRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:8', 'max:255'],
+            'username' => ['required', 'string', 'max:20'],
+            'password' => ['required', 'string', 'max:15'],
             'remember' => ['sometimes', 'boolean'],
         ];
     }
@@ -16,7 +16,7 @@ class LoginRequest extends BaseFormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'email' => strtolower(trim((string) $this->input('email', ''))),
+            'username' => trim((string) $this->input('username', '')),
         ]);
     }
 }

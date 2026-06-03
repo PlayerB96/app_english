@@ -7,16 +7,22 @@ globs: ["**/*"]
 
 ## Contexto
 - Tipo: Web Service (Fullstack)
-- Stack: Laravel 13 + Vue 3 (Inertia.js) + Microsoft SQL Server (`sqlsrv`)
+- Stack: Laravel 13 + Vue 3 (Inertia.js) + Microsoft SQL Server (`sqlsrv`) + pnpm
 - Descripción: Sistema web móvil de caja rápida para puntos de venta en tiendas. Escaneo de códigos de barras, consulta de precios y procesamiento de cobros.
+- Base de datos: SQL Server **legacy** existente (esquema gestionado por DBA). La app **no crea tablas** con migraciones Laravel.
+- Despliegue: hasta **10 servidores** con Docker; `DB_HOST` distinto por nodo; código compartido vía Git.
 
 ## Restricciones
-- PHP 8.4.21 obligatorio
+- PHP **8.4.21** obligatorio
 - TypeScript estricto en el frontend (no usar `any`)
-- No usar Eloquent fuera de Repositories — los Controllers y Services no deben hacer queries directamente
+- Gestor JS: **pnpm** (no npm/yarn en scripts ni Dockerfile)
+- **No usar migraciones Laravel** contra la BD legacy
+- **No** configurar `SESSION_DRIVER=database`, `CACHE_STORE=database` ni `QUEUE_CONNECTION=database` en producción legacy (no existen tablas `sessions`, `cache`, `jobs`)
+- Acceso a datos legacy: **stored procedures** en Repositories (`DB::select('EXEC …')`); no Eloquent directo fuera de Repositories
 - No usar `DB::raw()` salvo casos justificados
 - Toda validación pasa por Form Requests, nunca validar en el Controller
 - No instalar paquetes sin justificación documentada
+- Iconos UI: **@lucide/vue** (no otras librerías de iconos sin acuerdo)
 
 ## Convenciones
 - Idioma del código: inglés (variables, funciones, clases)
@@ -24,21 +30,26 @@ globs: ["**/*"]
 - Formato de commits: Conventional Commits (feat:, fix:, chore:, docs:, refactor:)
 - Branch principal: main
 - Nombres de rutas: kebab-case (ej: `/punto-de-venta`)
-- Modelos: singular PascalCase (ej: `Product`, `SaleTransaction`)
-- Tablas: plural snake_case (ej: `products`, `sale_transactions`)
+- Modelos Eloquent: singular PascalCase (ej: `Product`, `SaleTransaction`)
+- Tablas legacy: respetar nombres existentes en SQL Server; no renombrar desde Laravel
 
 ## Estructura
 
 ```
 app/
-├── Http/Controllers/      → Controladores (delegan a Services)
+├── Auth/                   → Proveedores de auth (MobileUserProvider)
+├── Http/Controllers/       → Controladores (delegan a Services)
 ├── Http/Requests/          → Form Requests (validación)
 ├── Http/Resources/         → API Resources (formato de respuesta)
-├── Http/Middleware/         → Middleware personalizado
-├── Models/                 → Modelos Eloquent
+├── Http/Middleware/        → Middleware personalizado
+├── Models/                 → MobileUser (sesión), Eloquent legacy si aplica
 ├── Services/               → Lógica de negocio
-├── Repositories/           → Acceso a datos
-└── Enums/                  → Enumeraciones
+├── Repositories/           → SPs y acceso a datos
+└── Enums/                  → MobileRoleCode, UserRole, etc.
+
+deploy/
+├── deploy.sh               → Actualización en servidores (no toca .env)
+└── env/                    → Plantillas DB_HOST / APP_URL por servidor
 
 resources/js/
 ├── Pages/                  → Páginas Vue (Inertia)
@@ -46,8 +57,18 @@ resources/js/
 ├── Composables/            → Composables Vue 3
 ├── Stores/                 → Pinia (estado global)
 ├── Layouts/                → Layouts de la app
-└── Services/               → Servicios frontend (scanner, API calls)
+├── types/                  → TypeScript (auth, API, etc.)
+└── Services/               → Servicios frontend (scanner, etc.)
 ```
+
+## Autenticación
+
+- Login vía SP `dbo.usp_movil_valida_usu_pwd_2` (`AuthRepository`).
+- Campos: `username` (varchar 20) y `password` (varchar 15); **no** es login por email.
+- Solo ingresa si existe fila con `c_role_codi = 00005` (`MobileRoleCode::CajaRapida`).
+- Usuario de sesión: `MobileUser` (no Eloquent, no tabla `users`).
+- Provider: `mobile` en `config/auth.php` → `MobileUserProvider` (datos en sesión `auth.mobile_user`).
+- **No** configurar credenciales de BD desde el frontend.
 
 ## Flujo de una petición (backend)
 
@@ -56,8 +77,8 @@ HTTP Request
     → Form Request (validación + mensajes en español)
     → Controller (orquesta, sin lógica de negocio ni queries)
     → Service (reglas de negocio, orquestación)
-    → Repository (consultas y persistencia Eloquent)
-    → Model / BD
+    → Repository (SPs EXEC o Eloquent legacy si aplica)
+    → SQL Server / respuesta mapeada a DTO o modelo
 
 Respuesta exitosa:
     → API Resource (formato JSON consistente) o Inertia::render (páginas web)
@@ -69,31 +90,35 @@ Errores en peticiones JSON (Accept: application/json):
 - Los bindings RepositoryInterface → implementación concreta viven en `RepositoryServiceProvider`.
 - Los Services dependen de interfaces (`XxxRepositoryInterface`), no de clases concretas de repositorio.
 - Detalle de implementación por capa: ver `code-style.mdc`.
-- Proceso de tareas del agente (`issues/ws/activities.json`: metadatos, `guidance`, `layer`, validaciones, commits): ver `workflow.mdc` y `issues/README.md`.
+- Proceso de tareas del agente: ver `workflow.mdc` y `issues/README.md`.
 
 ## Responsabilidad por capa
 
 | Capa | Ubicación | Responsabilidad | No debe contener |
 |------|-----------|-------------------|------------------|
 | **Form Request** | `app/Http/Requests/` | Validar entrada, autorización básica, mensajes en español | Lógica de negocio, queries, formateo de respuesta |
-| **Controller** | `app/Http/Controllers/` | Recibir request validado, llamar al Service, devolver Resource o vista Inertia | Validación inline, Eloquent, reglas de negocio |
-| **Service** | `app/Services/` | Reglas de negocio, orquestar repositorios, excepciones de dominio | Queries Eloquent directas |
-| **Repository** | `app/Repositories/` | CRUD y consultas específicas del modelo | Validación HTTP, respuestas JSON, reglas de negocio complejas |
-| **Model** | `app/Models/` | Relaciones, casts, scopes, fillable | Lógica de flujos completos (ventas, cobros, etc.) |
+| **Controller** | `app/Http/Controllers/` | Recibir request validado, llamar al Service, devolver Resource o vista Inertia | Validación inline, Eloquent/SP, reglas de negocio |
+| **Service** | `app/Services/` | Reglas de negocio, orquestar repositorios, excepciones de dominio | Queries Eloquent o EXEC directos |
+| **Repository** | `app/Repositories/` | SPs (`EXEC`), consultas legacy | Validación HTTP, respuestas JSON, reglas de negocio complejas |
+| **MobileUser** | `app/Models/MobileUser.php` | Usuario autenticado en sesión (datos del SP) | Persistencia Eloquent |
 | **Resource** | `app/Http/Resources/` | Transformar modelos a JSON; ocultar campos sensibles | Validación, persistencia |
-| **Provider** | `app/Providers/` | Bindings interfaz → implementación (IoC) | Lógica de negocio |
+| **Provider** | `app/Providers/` | Bindings interfaz → implementación (IoC), rate limiting | Lógica de negocio |
 
 ### Repositories (convención)
 
-- `RepositoryInterface` + `BaseRepository`: contrato y CRUD genérico compartido.
-- Por entidad: `XxxRepositoryInterface` (extiende el contrato base) + `XxxRepository` (extiende `BaseRepository`, implementa la interfaz).
-- Métodos que solo aplican a una entidad (ej. `findByEmail`) van en el repositorio concreto y se declaran en su interfaz.
-- `create(array $data)`: el repositorio recibe arrays asociativos compatibles con Eloquent; DTOs u objetos se convierten en el Service antes de llamar al repositorio.
+- Por dominio: `XxxRepositoryInterface` + `XxxRepository`.
+- Llamadas SP: `DB::connection('sqlsrv')->select('EXEC dbo.sp_nombre ?, ?', [$param1, $param2])`.
+- Mapear filas a DTOs o modelos de dominio en el Repository; el Service no parsea `stdClass`.
+- `AuthRepository`: único punto de llamada a `usp_movil_valida_usu_pwd_2`.
 
-### Ejemplo de cadena (crear usuario)
+### Ejemplo de cadena (login)
 
-1. `StoreUserRequest` valida `name`, `email`, `password`.
-2. Controller inyecta `UserService`, pasa `$request->validated()`.
-3. `UserService` aplica reglas (ej. hash de password) y llama a `UserRepositoryInterface::create()`.
-4. `UserRepository` persiste vía `BaseRepository`.
-5. Controller responde con `UserResource::make($user)` o redirect Inertia según el endpoint.
+1. `LoginRequest` valida `username`, `password`.
+2. `AuthController` llama a `AuthService::login()`.
+3. `AuthService` usa `AuthRepositoryInterface::validateCredentials()`, valida rol `00005`, crea `MobileUser`, guarda sesión.
+4. Redirect a `dashboard` vía Inertia.
+
+## Infraestructura local obligatoria
+
+- Carpetas escribibles: `storage/framework/sessions`, `storage/framework/cache/data`, `bootstrap/cache`.
+- `.env` producción legacy: `SESSION_DRIVER=file`, `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`.

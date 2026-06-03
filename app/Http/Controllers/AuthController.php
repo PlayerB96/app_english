@@ -25,7 +25,7 @@ class AuthController extends Controller
         $validated = $request->validated();
 
         $this->auth->login(
-            $validated['email'],
+            $validated['username'],
             $validated['password'],
             (bool) ($validated['remember'] ?? false),
         );

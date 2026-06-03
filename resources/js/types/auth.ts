@@ -1,9 +1,15 @@
 export type UserRole = "cashier" | "administrator";
 
 export interface AuthUser {
-    id: number;
+    code: string;
     name: string;
-    email: string;
+    companyCode: string;
+    branchCode: string;
+    exchangeRate: number;
+    roleCode: string;
+    roleName: string;
+    branchName: string;
+    branchSigla: string;
     role: UserRole;
 }
 

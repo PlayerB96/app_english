@@ -2,13 +2,51 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Auth\MobileUserProvider;
+use App\Models\MobileUser;
+use App\Repositories\Contracts\AuthRepositoryInterface;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
-    use RefreshDatabase;
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        RateLimiter::clear('login');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function postLogin(array $data): TestResponse
+    {
+        return $this->withoutMiddleware(ThrottleRequests::class)
+            ->from('/login')
+            ->postWithCsrf('/login', $data);
+    }
+
+    /**
+     * @return list<object>
+     */
+    private function validSpRows(string $roleCode = '00005'): array
+    {
+        return [(object) [
+            'l_exis_usua' => 1,
+            'c_usua_codi' => 'CAJERO01',
+            'c_usua_nomb' => 'Cajero Demo',
+            'c_codi_empr' => '00001',
+            'c_codi_sucu' => '01',
+            'n_tcam_vent' => 3.75,
+            'c_role_codi' => $roleCode,
+            'c_role_nomb' => 'Caja Rapida',
+            'c_nomb_sucu' => 'Sucursal Centro',
+            'c_sigl_sucu' => 'CTR',
+        ]];
+    }
 
     public function test_guest_can_view_login_page(): void
     {
@@ -17,44 +55,99 @@ class AuthTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_user_can_login_with_valid_credentials(): void
+    public function test_user_can_login_with_valid_credentials_and_allowed_role(): void
     {
-        $user = User::factory()->create([
-            'email' => 'cajero@example.com',
-            'password' => 'password123',
-        ]);
+        $this->mock(AuthRepositoryInterface::class, function ($mock): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('CAJERO01', 'clave123')
+                ->once()
+                ->andReturn($this->validSpRows());
+        });
 
-        $response = $this->post('/login', [
-            'email' => 'cajero@example.com',
-            'password' => 'password123',
+        $response = $this->postLogin([
+            'username' => 'CAJERO01',
+            'password' => 'clave123',
         ]);
 
         $response->assertRedirect(route('dashboard'));
-        $this->assertAuthenticatedAs($user);
+        $this->assertAuthenticated();
+
+        $user = auth()->user();
+        $this->assertInstanceOf(MobileUser::class, $user);
+        $this->assertSame('CAJERO01', $user->code);
+        $this->assertSame('00005', $user->roleCode);
     }
 
     public function test_login_fails_with_invalid_credentials(): void
     {
-        User::factory()->create([
-            'email' => 'cajero@example.com',
-            'password' => 'password123',
-        ]);
+        $this->mock(AuthRepositoryInterface::class, function ($mock): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('CAJERO01', 'wrong-password')
+                ->once()
+                ->andReturn([(object) [
+                    'l_exis_usua' => 0,
+                    'c_usua_codi' => '',
+                    'c_usua_nomb' => '',
+                    'c_codi_empr' => '',
+                    'c_codi_sucu' => '',
+                    'n_tcam_vent' => 0,
+                    'c_role_codi' => '',
+                    'c_role_nomb' => '',
+                    'c_nomb_sucu' => '',
+                    'c_sigl_sucu' => '',
+                ]]);
+        });
 
-        $response = $this->from('/login')->post('/login', [
-            'email' => 'cajero@example.com',
-            'password' => 'wrong-password',
+        $response = $this->withoutMiddleware(ThrottleRequests::class)
+            ->from('/login')
+            ->postWithCsrf('/login', [
+                'username' => 'CAJERO01',
+                'password' => 'wrong-password',
+            ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors('username');
+        $this->assertGuest();
+    }
+
+    public function test_login_fails_when_user_has_no_caja_rapida_role(): void
+    {
+        $rows = $this->validSpRows('00039');
+
+        $this->mock(AuthRepositoryInterface::class, function ($mock) use ($rows): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('CAJERO01', 'clave123')
+                ->once()
+                ->andReturn($rows);
+        });
+
+        $response = $this->postLogin([
+            'username' => 'CAJERO01',
+            'password' => 'clave123',
         ]);
 
         $response->assertRedirect('/login');
-        $response->assertSessionHasErrors('email');
+        $response->assertSessionHasErrors('username');
         $this->assertGuest();
     }
 
     public function test_authenticated_user_can_logout(): void
     {
-        $user = User::factory()->create();
+        $user = MobileUser::fromSpRow((object) [
+            'c_usua_codi' => 'CAJERO01',
+            'c_usua_nomb' => 'Cajero Demo',
+            'c_codi_empr' => '00001',
+            'c_codi_sucu' => '01',
+            'n_tcam_vent' => 3.75,
+            'c_role_codi' => '00005',
+            'c_role_nomb' => 'Caja Rapida',
+            'c_nomb_sucu' => 'Sucursal Centro',
+            'c_sigl_sucu' => 'CTR',
+        ]);
 
-        $response = $this->actingAs($user)->post('/logout');
+        session([MobileUserProvider::SESSION_KEY => $user->toSessionArray()]);
+
+        $response = $this->actingAs($user)->postWithCsrf('/logout');
 
         $response->assertRedirect(route('login'));
         $this->assertGuest();
@@ -67,16 +160,18 @@ class AuthTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_login_sanitizes_email_input(): void
+    public function test_login_sanitizes_username_input(): void
     {
-        User::factory()->create([
-            'email' => 'cajero@example.com',
-            'password' => 'password123',
-        ]);
+        $this->mock(AuthRepositoryInterface::class, function ($mock): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('CAJERO01', 'clave123')
+                ->once()
+                ->andReturn($this->validSpRows());
+        });
 
-        $response = $this->post('/login', [
-            'email' => '  CAJERO@EXAMPLE.COM  ',
-            'password' => 'password123',
+        $response = $this->postLogin([
+            'username' => '  CAJERO01  ',
+            'password' => 'clave123',
         ]);
 
         $response->assertRedirect(route('dashboard'));

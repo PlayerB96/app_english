@@ -2,16 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Http\Resources\UserResource;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tests\TestCase;
 
 class ExceptionTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -21,7 +20,7 @@ class ExceptionTest extends TestCase
         });
 
         Route::get('/_test/model-not-found', function () {
-            return User::query()->findOrFail(999999);
+            throw (new ModelNotFoundException)->setModel(User::class);
         });
     }
 
