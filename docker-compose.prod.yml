@@ -1,0 +1,27 @@
+# Producción: app contra SQL Server externo (sin contenedor sqlserver).
+# DB_HOST y APP_URL se leen del .env local de cada servidor.
+#
+# Uso:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: caja_rapida_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+    networks:
+      - caja_rapida
+
+networks:
+  caja_rapida:
+    driver: bridge

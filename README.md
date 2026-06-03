@@ -119,6 +119,57 @@ La contraseña y credenciales de SQL Server siguen en **`.env`** (o en **`.env.t
 
 Puedes mover ahí toda la configuración de BD de prueba (`DB_*`) y dejar en `phpunit.xml` solo lo específico del runner y del entorno `testing`. Laravel carga `.env.testing` cuando `APP_ENV=testing`.
 
+## Despliegue multi-servidor (producción)
+
+La aplicación corre en **10 servidores locales** con Docker. Cada uno apunta a **su propio SQL Server** (`DB_HOST` distinto), pero comparte credenciales, base de datos y esquema. El código se replica igual en todos; la configuración de red vive en el `.env` local de cada máquina (no en Git).
+
+### Variables: compartidas vs por servidor
+
+| Variable | Ámbito | Descripción |
+|----------|--------|-------------|
+| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_PORT` | Compartido | Misma BD y credenciales en los 10 nodos |
+| `APP_KEY`, `APP_NAME`, `SESSION_DRIVER`, etc. | Compartido | Misma configuración de aplicación |
+| **`DB_HOST`** | **Por servidor** | IP del SQL Server accesible desde ese local |
+| **`APP_URL`** | **Por servidor** | URL/IP donde los móviles acceden a ese servidor |
+
+Plantillas de referencia (sin secretos): [`deploy/env/`](deploy/env/) (`servidor-01.env.example` … `servidor-10.env.example`).
+
+### Bootstrap (primera vez en cada servidor)
+
+```bash
+git clone <repo> /opt/caja_rapida
+cd /opt/caja_rapida
+
+cp .env.example .env
+# Editar .env: DB_HOST y APP_URL de ESTE servidor
+# Completar DB_PASSWORD y APP_KEY (generar en el host si tienes PHP: php artisan key:generate)
+
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+docker compose -f docker-compose.prod.yml exec app php artisan config:cache
+```
+
+La app quedará en el puerto **8000** del servidor (`APP_URL`).
+
+> **Desarrollo local** sigue usando `docker compose up` (con SQL Server y Redis en contenedor). **Producción** usa `docker-compose.prod.yml` (solo app, BD externa).
+
+### Actualizar los 10 servidores tras un cambio de código
+
+En cada servidor, ejecutar el script de despliegue (no modifica `.env`):
+
+```bash
+cd /opt/caja_rapida
+./deploy/deploy.sh
+```
+
+El script hace: `git pull` → rebuild Docker → `migrate --force` → `config:cache`.
+
+Para automatizar desde una máquina central, puedes usar SSH o Ansible ejecutando el mismo script en cada host.
+
+### Migraciones
+
+Cada servidor tiene su propia instancia de SQL Server con el mismo esquema. Tras desplegar cambios con migraciones, `deploy.sh` ejecuta `migrate --force` en **cada nodo**. Si tu infraestructura usa réplicas con un solo nodo maestro para DDL, coordina con el DBA antes de automatizar.
+
 ## Comandos útiles
 
 ```bash
