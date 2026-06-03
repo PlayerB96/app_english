@@ -21,7 +21,7 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 
 - PHP 8.4.21
 - Composer 2.x
-- Node.js 20+ y npm
+- Node.js 20+ y pnpm
 - Microsoft SQL Server 2019+ (local o Docker)
 - Extensión PHP `pdo_sqlsrv` y ODBC Driver 18 for SQL Server
 - Redis (o Docker)
@@ -57,7 +57,7 @@ docker compose exec app php artisan migrate
 composer install
 
 # Instalar dependencias JS
-npm install
+pnpm install
 
 # Copiar y configurar variables de entorno
 cp .env.example .env
@@ -68,7 +68,7 @@ php artisan migrate
 
 # Levantar servidor de desarrollo (en terminales separadas)
 php artisan serve
-npm run dev
+pnpm run dev
 ```
 
 ## Estructura del proyecto
@@ -175,12 +175,12 @@ Cada servidor tiene su propia instancia de SQL Server con el mismo esquema. Tras
 ```bash
 # Tests
 php artisan test                    # Tests PHP
-npm run type-check                  # Verificar tipos TypeScript
+pnpm run type-check                 # Verificar tipos TypeScript
 
 # Calidad de código
 vendor/bin/pint                     # Formatear PHP (Laravel Pint)
 composer analyse                    # Análisis estático (PHPStan)
-npm run lint                        # Lint del frontend
+pnpm run lint                       # Lint del frontend
 
 # Base de datos
 php artisan migrate                 # Ejecutar migraciones

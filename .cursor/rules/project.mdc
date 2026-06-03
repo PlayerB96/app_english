@@ -11,7 +11,7 @@ globs: ["**/*"]
 - Descripción: Sistema web móvil de caja rápida para puntos de venta en tiendas. Escaneo de códigos de barras, consulta de precios y procesamiento de cobros.
 
 ## Restricciones
-- PHP 8.3+ obligatorio
+- PHP 8.4.21 obligatorio
 - TypeScript estricto en el frontend (no usar `any`)
 - No usar Eloquent fuera de Repositories — los Controllers y Services no deben hacer queries directamente
 - No usar `DB::raw()` salvo casos justificados

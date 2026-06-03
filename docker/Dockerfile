@@ -1,4 +1,4 @@
-FROM php:8.4-cli
+FROM php:8.4.21-cli
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     nodejs \
-    npm \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
     && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
@@ -20,6 +19,8 @@ RUN apt-get update && apt-get install -y \
     && pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && docker-php-ext-install mbstring exif pcntl bcmath gd \
+    && corepack enable \
+    && corepack prepare pnpm@10 --activate \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,7 +31,8 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader \
-    && npm ci && npm run build
+    && pnpm install --frozen-lockfile \
+    && pnpm run build
 
 EXPOSE 8000
 
