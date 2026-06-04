@@ -42,7 +42,7 @@ app/
 ├── Http/Requests/          → Form Requests (validación)
 ├── Http/Resources/         → API Resources (formato de respuesta)
 ├── Http/Middleware/        → Middleware personalizado
-├── Models/                 → MobileUser (sesión), Eloquent legacy si aplica
+├── Models/                 → MobileUser (sesión); User.php solo plantilla WS-002/tests
 ├── Services/               → Lógica de negocio
 ├── Repositories/           → SPs y acceso a datos
 └── Enums/                  → MobileRoleCode, UserRole, etc.
@@ -65,8 +65,10 @@ resources/js/
 
 - Login vía SP `dbo.usp_movil_valida_usu_pwd_2` (`AuthRepository`).
 - Campos: `username` (varchar 20) y `password` (varchar 15); **no** es login por email.
-- Solo ingresa si existe fila con `c_role_codi = 00005` (`MobileRoleCode::CajaRapida`).
+- Login permitido si el SP devuelve fila con `c_role_codi` **00005** (`CajaRapida`) o **00001** (`Administrador`); se prioriza `00005` si hay varias.
+- `UserRole` en sesión: `00005` → `cashier`, `00001` → `administrator` (middleware `role:administrator` en `/admin`).
 - Usuario de sesión: `MobileUser` (no Eloquent, no tabla `users`).
+- **`User` / `UserRepository` / `UserService`**: plantilla del patrón WS-002 y tests (`RepositoryTest`, `RequestTest`); **no** usar en auth ni rutas de producción.
 - Provider: `mobile` en `config/auth.php` → `MobileUserProvider` (datos en sesión `auth.mobile_user`).
 - **No** configurar credenciales de BD desde el frontend.
 
@@ -115,7 +117,7 @@ Errores en peticiones JSON (Accept: application/json):
 
 1. `LoginRequest` valida `username`, `password`.
 2. `AuthController` llama a `AuthService::login()`.
-3. `AuthService` usa `AuthRepositoryInterface::validateCredentials()`, valida rol `00005`, crea `MobileUser`, guarda sesión.
+3. `AuthService` usa `AuthRepositoryInterface::validateCredentials()`, elige fila `00005` o `00001`, mapea `UserRole`, crea `MobileUser`, guarda sesión.
 4. Redirect a `dashboard` vía Inertia.
 
 ## Infraestructura local obligatoria

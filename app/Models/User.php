@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+/**
+ * Plantilla del patrón WS-002 y tests de ejemplo. No usar en auth ni rutas de producción
+ * (login real: MobileUser + AuthRepository / SP legacy).
+ */
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;

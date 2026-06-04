@@ -76,6 +76,56 @@ class AuthTest extends TestCase
         $this->assertInstanceOf(MobileUser::class, $user);
         $this->assertSame('CAJERO01', $user->code);
         $this->assertSame('00005', $user->roleCode);
+        $this->assertTrue($user->isCashier());
+    }
+
+    public function test_administrator_can_login_with_admin_role_code(): void
+    {
+        $this->mock(AuthRepositoryInterface::class, function ($mock): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('ADMIN01', 'clave123')
+                ->once()
+                ->andReturn($this->validSpRows('00001'));
+        });
+
+        $response = $this->postLogin([
+            'username' => 'ADMIN01',
+            'password' => 'clave123',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+
+        $user = auth()->user();
+        $this->assertInstanceOf(MobileUser::class, $user);
+        $this->assertSame('00001', $user->roleCode);
+        $this->assertTrue($user->isAdministrator());
+    }
+
+    public function test_login_prefers_caja_rapida_when_sp_returns_multiple_roles(): void
+    {
+        $rows = [
+            (object) array_merge((array) $this->validSpRows('00001')[0], ['c_role_codi' => '00001', 'c_role_nomb' => 'Administrador']),
+            (object) array_merge((array) $this->validSpRows('00005')[0], ['c_role_codi' => '00005', 'c_role_nomb' => 'Caja Rapida']),
+        ];
+
+        $this->mock(AuthRepositoryInterface::class, function ($mock) use ($rows): void {
+            $mock->shouldReceive('validateCredentials')
+                ->with('MIXED01', 'clave123')
+                ->once()
+                ->andReturn($rows);
+        });
+
+        $response = $this->postLogin([
+            'username' => 'MIXED01',
+            'password' => 'clave123',
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+
+        $user = auth()->user();
+        $this->assertSame('00005', $user->roleCode);
+        $this->assertTrue($user->isCashier());
     }
 
     public function test_login_fails_with_invalid_credentials(): void

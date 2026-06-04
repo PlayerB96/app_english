@@ -24,7 +24,7 @@ class AuthService
             ]);
         }
 
-        $allowedRow = $this->findRowWithRole($rows, MobileRoleCode::CajaRapida->value);
+        $allowedRow = $this->resolveLoginRow($rows);
 
         if ($allowedRow === null) {
             throw ValidationException::withMessages([
@@ -32,7 +32,7 @@ class AuthService
             ]);
         }
 
-        $user = MobileUser::fromSpRow($allowedRow, UserRole::Cashier);
+        $user = MobileUser::fromSpRow($allowedRow, $this->mapRoleCodeToUserRole($allowedRow));
 
         session([MobileUserProvider::SESSION_KEY => $user->toSessionArray()]);
 
@@ -47,6 +47,33 @@ class AuthService
 
         request()->session()->invalidate();
         request()->session()->regenerateToken();
+    }
+
+    /**
+     * Prioriza caja rápida (POS); si no existe, acepta administrador legacy.
+     *
+     * @param  list<object>  $rows
+     */
+    private function resolveLoginRow(array $rows): ?object
+    {
+        foreach ([MobileRoleCode::CajaRapida, MobileRoleCode::Administrador] as $role) {
+            $row = $this->findRowWithRole($rows, $role->value);
+
+            if ($row !== null) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    private function mapRoleCodeToUserRole(object $row): UserRole
+    {
+        return match (trim((string) ($row->c_role_codi ?? ''))) {
+            MobileRoleCode::Administrador->value => UserRole::Administrator,
+            MobileRoleCode::CajaRapida->value => UserRole::Cashier,
+            default => UserRole::Cashier,
+        };
     }
 
     /**

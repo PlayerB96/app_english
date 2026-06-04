@@ -40,7 +40,7 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 |---------|---------|
 | SP | `dbo.usp_movil_valida_usu_pwd_2` |
 | Campos login | **Usuario** (`username`, max 20) y **Contraseña** (max 15) |
-| Rol permitido | `c_role_codi = 00005` (caja rápida) |
+| Roles SP permitidos | `00005` (caja rápida → `cashier`), `00001` (administrador → `administrator`); prioriza `00005` |
 | Sesión | `MobileUser` + `MobileUserProvider` (archivos en `storage/framework/sessions`) |
 | Frontend | [`resources/js/Pages/Auth/Login.vue`](resources/js/Pages/Auth/Login.vue) con toggle ver/ocultar clave (Lucide) |
 

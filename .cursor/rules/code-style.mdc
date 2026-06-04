@@ -28,7 +28,8 @@ globs: ["**/*"]
 ### Autenticación
 - `MobileUser` implementa `Authenticatable`; no extiende Eloquent
 - No usar `Auth::login()` con modelos Eloquent contra BD legacy para el login POS
-- Rol POS permitido: `MobileRoleCode::CajaRapida` (`00005`)
+- Roles SP permitidos en login: `MobileRoleCode::CajaRapida` (`00005`) y `MobileRoleCode::Administrador` (`00001`); priorizar `00005`
+- Mapeo a `UserRole`: `00005` → `Cashier`, `00001` → `Administrator`
 
 ### Modelos Eloquent (legacy / tests)
 - Definir `$fillable` explícitamente, nunca usar `$guarded = []`

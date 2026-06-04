@@ -19,7 +19,7 @@
                 "El proyecto Laravel arranca sin errores con php artisan serve",
                 "Vite compila assets de Vue 3 sin errores con pnpm run build",
                 "Una página de bienvenida se renderiza correctamente con Inertia + Vue",
-                "La conexión a SQL Server funciona y las migraciones se ejecutan",
+                "La conexión a SQL Server legacy funciona (sin migraciones Laravel)",
                 "Docker Compose levanta app + sqlserver + redis correctamente"
             ],
             "guidance": {
@@ -102,15 +102,19 @@
                 },
                 {
                     "id": "WS-001-5",
-                    "title": "Configurar y ejecutar migraciones iniciales",
+                    "title": "Verificar conexión SQL Server legacy",
                     "status": "completed",
                     "layer": "data",
-                    "validation": "php artisan migrate:status",
+                    "validation": "php artisan tinker --execute=\"DB::connection('sqlsrv')->getPdo()\"",
                     "guidance": {
+                        "agent": [
+                            "No crear migraciones Laravel contra la BD legacy"
+                        ],
                         "developer": {
-                            "goal": "Base de datos inicial migrada",
-                            "files": ["database/migrations/"],
-                            "references": ["README.md"]
+                            "goal": "Conexión sqlsrv operativa; esquema gestionado por DBA",
+                            "files": ["config/database.php", "database/README.md"],
+                            "references": ["README.md", ".cursor/rules/project.mdc"],
+                            "avoid": ["php artisan migrate", "Tablas users/sessions en SQL Server"]
                         }
                     }
                 }
@@ -221,15 +225,15 @@
             "architecture": "layered-repository-service-inertia",
             "status": "completed",
             "priority": "high",
-            "description": "Auth y protección de rutas/endpoints según capas: login/logout con sesiones Inertia, roles (cajero/administrador), middleware, rate limiting y sanitización.",
+            "description": "Auth legacy por SP: login/logout Inertia, MobileUser en sesión, roles desde c_role_codi (00005 cajero, 00001 administrador), middleware CheckRole y rate limiting.",
             "acceptanceCriteria": [
-                "Flujo de login/logout definido por capas",
-                "Rutas o endpoints protegidos documentados",
-                "Login y logout funcionan correctamente con sesiones",
-                "Existen al menos 2 roles: cajero y administrador",
+                "Flujo de login/logout definido por capas (Form Request → Controller → Service → AuthRepository)",
+                "Rutas protegidas documentadas en routes/web.php",
+                "Login y logout con MobileUser y MobileUserProvider",
+                "UserRole mapeado desde SP: 00005 → cashier, 00001 → administrator",
                 "Las rutas protegidas redirigen a login si no hay sesión",
-                "Rate limiting configurado para endpoints sensibles (login, API)",
-                "Middleware de autorización verifica rol antes de acceder a recursos"
+                "Rate limiting en POST /login (throttle:login)",
+                "Middleware role:administrator protege /admin"
             ],
             "guidance": {
                 "agent": [
@@ -245,17 +249,23 @@
             "subtasks": [
                 {
                     "id": "WS-003-1",
-                    "title": "Configurar modelo User con roles y migraciones",
+                    "title": "MobileUser, AuthRepository y mapeo de roles desde SP",
                     "status": "completed",
                     "layer": "data",
-                    "validation": "php artisan migrate && php artisan tinker --execute=\"App\\Models\\User::factory()->create()\"",
+                    "validation": "php artisan test --filter=Auth",
                     "guidance": {
                         "agent": [
-                            "Queries solo en Repository; modelo sin lógica de flujos completos"
+                            "SP solo en AuthRepository con DB::connection('sqlsrv')",
+                            "No usar app/Models/User.php para auth de producción"
                         ],
                         "developer": {
-                            "goal": "Usuario y roles persistidos en BD",
-                            "files": ["app/Models/User.php", "database/migrations/"],
+                            "goal": "Sesión MobileUser desde usp_movil_valida_usu_pwd_2; roles 00005/00001",
+                            "files": [
+                                "app/Models/MobileUser.php",
+                                "app/Repositories/AuthRepository.php",
+                                "app/Enums/MobileRoleCode.php",
+                                "app/Auth/MobileUserProvider.php"
+                            ],
                             "references": [".cursor/rules/project.mdc"]
                         }
                     }
@@ -322,6 +332,141 @@
                 }
             ],
             "dependencies": ["WS-002"]
+        },
+        {
+            "id": "WS-004",
+            "title": "Punto de venta móvil (caja rápida)",
+            "category": "feature",
+            "architecture": "layered-repository-service-inertia",
+            "status": "pending",
+            "priority": "high",
+            "description": "Flujo POS móvil: escáner de códigos de barras, consulta de precios vía SP, carrito Pinia y pantalla de cobro. Backend por capas; frontend mobile-first con Tailwind y TypeScript estricto.",
+            "acceptanceCriteria": [
+                "El cajero autenticado puede escanear o ingresar un código de barras",
+                "La consulta de producto/precio usa Repository + SP (sin Eloquent directo en Service)",
+                "El carrito persiste en Pinia durante la sesión de venta",
+                "La UI es usable en viewport 375px (mobile-first)",
+                "Flujo completo: escanear → agregar al carrito → ver total → iniciar cobro (stub o SP según DBA)"
+            ],
+            "guidance": {
+                "agent": [
+                    "Seguir capas: Form Request → Controller → Service → Repository",
+                    "No instalar librerías de escáner sin aprobación del usuario",
+                    "Probar con pnpm run type-check y php artisan test al cerrar subtareas"
+                ],
+                "developer": {
+                    "goal": "MVP de venta en mostrador alineado al dominio caja rápida",
+                    "context": [
+                        "Usuario de sesión: MobileUser (sucursal, TC)",
+                        "API de cámara del dispositivo para escaneo"
+                    ],
+                    "references": [
+                        ".cursor/rules/project.mdc",
+                        ".cursor/rules/code-style.mdc",
+                        "README.md"
+                    ]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-004-1",
+                    "title": "Composable de escáner de barras (cámara / entrada manual)",
+                    "status": "pending",
+                    "layer": "presentation",
+                    "validation": "pnpm run type-check && pnpm run build",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Capturar código de barras en móvil con fallback manual",
+                            "files": [
+                                "resources/js/Composables/useBarcodeScanner.ts",
+                                "resources/js/types/scanner.ts"
+                            ],
+                            "references": [".cursor/rules/code-style.mdc"],
+                            "avoid": ["Usar any en TypeScript", "CSS fuera de Tailwind"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-004-2",
+                    "title": "Repository y Service de consulta de producto/precio (SP)",
+                    "status": "pending",
+                    "layer": "data",
+                    "validation": "php artisan test --filter=Product",
+                    "guidance": {
+                        "agent": [
+                            "EXEC solo en Repository con DB::connection('sqlsrv')",
+                            "Definir interfaz ProductRepositoryInterface + binding en RepositoryServiceProvider"
+                        ],
+                        "developer": {
+                            "goal": "Precio y datos de artículo desde SP legacy acordado con DBA",
+                            "files": [
+                                "app/Repositories/Contracts/ProductRepositoryInterface.php",
+                                "app/Repositories/ProductRepository.php",
+                                "app/Services/ProductService.php"
+                            ],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-004-3",
+                    "title": "Store Pinia del carrito de venta",
+                    "status": "pending",
+                    "layer": "presentation",
+                    "validation": "pnpm run type-check",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Estado global del carrito (líneas, cantidades, total)",
+                            "files": [
+                                "resources/js/Stores/cartStore.ts",
+                                "resources/js/types/cart.ts"
+                            ],
+                            "references": [".cursor/rules/code-style.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-004-4",
+                    "title": "Página POS (escaneo, listado carrito, total)",
+                    "status": "pending",
+                    "layer": "presentation",
+                    "validation": "pnpm run build",
+                    "guidance": {
+                        "developer": {
+                            "goal": "UI mobile-first del punto de venta con Inertia",
+                            "files": [
+                                "resources/js/Pages/Pos/Index.vue",
+                                "resources/js/Components/Pos/CartLineItem.vue",
+                                "resources/js/Layouts/AppLayout.vue"
+                            ],
+                            "references": [".cursor/rules/code-style.mdc"],
+                            "avoid": ["<style> o CSS inline"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-004-5",
+                    "title": "Rutas y controller de cobro (orquestación)",
+                    "status": "pending",
+                    "layer": "http",
+                    "validation": "php artisan route:list --path=pos",
+                    "guidance": {
+                        "agent": [
+                            "Controller sin lógica de negocio; validación en Form Request"
+                        ],
+                        "developer": {
+                            "goal": "Endpoints/rutas web para consulta y cobro delegando a Services",
+                            "files": [
+                                "routes/web.php",
+                                "app/Http/Controllers/PosController.php",
+                                "app/Http/Requests/ScanProductRequest.php"
+                            ],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                }
+            ],
+            "dependencies": ["WS-003"]
         }
     ]
 }

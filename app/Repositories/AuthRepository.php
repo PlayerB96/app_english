@@ -9,7 +9,7 @@ class AuthRepository implements AuthRepositoryInterface
 {
     public function validateCredentials(string $username, string $password): array
     {
-        $rows = DB::select(
+        $rows = DB::connection('sqlsrv')->select(
             'EXEC dbo.usp_movil_valida_usu_pwd_2 ?, ?',
             [$username, $password],
         );
