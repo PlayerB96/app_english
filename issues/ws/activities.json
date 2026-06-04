@@ -1,0 +1,327 @@
+{
+    "project": "ln1_caja_rapida",
+    "layer": "web-service",
+    "architecture": "layered-repository-service-inertia",
+    "packageManager": "composer + pnpm",
+    "activities": [
+        {
+            "id": "WS-001",
+            "title": "Scaffolding y estructura base",
+            "category": "arquitectura",
+            "architecture": "layered-repository-service-inertia",
+            "status": "completed",
+            "priority": "high",
+            "description": "Estructura base del proyecto alineada a layered-repository-service-inertia: Laravel 13, Inertia.js, Vue 3, SQL Server, Docker Compose y entrypoint fullstack operativo.",
+            "acceptanceCriteria": [
+                "El proyecto compila o arranca según el stack",
+                "Estructura de carpetas acordada en Paso 4 creada",
+                "Comandos de validación del gestor de paquetes pasan",
+                "El proyecto Laravel arranca sin errores con php artisan serve",
+                "Vite compila assets de Vue 3 sin errores con pnpm run build",
+                "Una página de bienvenida se renderiza correctamente con Inertia + Vue",
+                "La conexión a SQL Server funciona y las migraciones se ejecutan",
+                "Docker Compose levanta app + sqlserver + redis correctamente"
+            ],
+            "guidance": {
+                "developer": {
+                    "goal": "Base lista para features sin mezclar capas",
+                    "references": ["README.md", ".cursor/rules/project.mdc"]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-001-1",
+                    "title": "Instalar dependencias PHP con Composer",
+                    "status": "completed",
+                    "layer": "infra",
+                    "validation": "composer install && php artisan --version",
+                    "guidance": {
+                        "agent": [
+                            "Solo archivos de configuración y carpetas; sin lógica de negocio",
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Tooling PHP y autoload configurados",
+                            "files": ["composer.json", "composer.lock"],
+                            "examples": ["composer install exitoso", "php artisan --version responde"],
+                            "references": ["README.md"],
+                            "avoid": ["Instalar dependencias sin permiso del usuario"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-001-2",
+                    "title": "Instalar dependencias JS con pnpm",
+                    "status": "completed",
+                    "layer": "infra",
+                    "validation": "pnpm install && pnpm run build",
+                    "guidance": {
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Tooling frontend y build configurados",
+                            "files": ["package.json", "pnpm-lock.yaml", "vite.config.ts"],
+                            "examples": ["pnpm run build sin errores"],
+                            "references": ["README.md"],
+                            "avoid": ["Instalar dependencias sin permiso del usuario"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-001-3",
+                    "title": "Configurar archivos base de Laravel (bootstrap, providers, rutas)",
+                    "status": "completed",
+                    "layer": "infra",
+                    "validation": "php artisan route:list",
+                    "guidance": {
+                        "agent": [
+                            "Solo configuración de arranque y rutas base",
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Bootstrap y rutas base operativas",
+                            "files": ["bootstrap/app.php", "routes/web.php", "app/Providers/AppServiceProvider.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-001-4",
+                    "title": "Crear layout principal y página de bienvenida con Inertia + Vue",
+                    "status": "completed",
+                    "layer": "presentation",
+                    "validation": "pnpm run build && php artisan serve --port=8001 &; sleep 3; curl -s http://localhost:8001 | head -20; kill %1",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Primera página Inertia renderizada end-to-end",
+                            "files": ["resources/js/Pages/Welcome.vue", "resources/js/Layouts/AppLayout.vue"],
+                            "references": [".cursor/rules/code-style.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-001-5",
+                    "title": "Configurar y ejecutar migraciones iniciales",
+                    "status": "completed",
+                    "layer": "data",
+                    "validation": "php artisan migrate:status",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Base de datos inicial migrada",
+                            "files": ["database/migrations/"],
+                            "references": ["README.md"]
+                        }
+                    }
+                }
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "WS-002",
+            "title": "Patrones y convenciones base",
+            "category": "patron-diseno",
+            "architecture": "layered-repository-service-inertia",
+            "status": "completed",
+            "priority": "high",
+            "description": "Implementar patrones base por capa según reglas del proyecto: Repository, Service, Form Request, API Resource y Exception Handler global.",
+            "acceptanceCriteria": [
+                "Cada capa tiene al menos un ejemplo funcional",
+                "Separación de responsabilidades verificable en el código",
+                "Existe una interfaz base RepositoryInterface con métodos CRUD estándar",
+                "Existe una clase base BaseRepository que implementa la interfaz",
+                "Existe un Service de ejemplo que consume un Repository",
+                "Form Requests validan correctamente y retornan errores en español",
+                "API Resources transforman la respuesta de modelos a formato JSON consistente"
+            ],
+            "guidance": {
+                "developer": {
+                    "goal": "Patrón repetible para nuevas features",
+                    "references": [".cursor/rules/code-style.mdc", ".cursor/rules/project.mdc"]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-002-1",
+                    "title": "Crear RepositoryInterface y BaseRepository",
+                    "status": "completed",
+                    "layer": "data",
+                    "validation": "php artisan test --filter=Repository",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Contrato y CRUD genérico de repositorio",
+                            "files": ["app/Repositories/RepositoryInterface.php", "app/Repositories/BaseRepository.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-002-2",
+                    "title": "Crear ServiceProvider para binding de interfaces",
+                    "status": "completed",
+                    "layer": "infra",
+                    "validation": "php artisan tinker --execute=\"app(App\\Repositories\\RepositoryInterface::class)\"",
+                    "guidance": {
+                        "developer": {
+                            "goal": "IoC: interfaz enlazada a implementación",
+                            "files": ["app/Providers/RepositoryServiceProvider.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-002-3",
+                    "title": "Crear Form Request base con mensajes en español",
+                    "status": "completed",
+                    "layer": "http",
+                    "validation": "php artisan test --filter=Request",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Validación HTTP centralizada en Form Requests",
+                            "files": ["app/Http/Requests/"],
+                            "references": [".cursor/rules/code-style.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-002-4",
+                    "title": "Crear Resource base para respuestas JSON",
+                    "status": "completed",
+                    "layer": "http",
+                    "validation": "php artisan test --filter=Resource",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Respuestas JSON consistentes vía Resources",
+                            "files": ["app/Http/Resources/"],
+                            "references": [".cursor/rules/code-style.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-002-5",
+                    "title": "Configurar Exception Handler global con respuestas consistentes",
+                    "status": "completed",
+                    "layer": "http",
+                    "validation": "php artisan test --filter=Exception",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Errores JSON uniformes (422, 404, 5xx)",
+                            "files": ["bootstrap/app.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                }
+            ],
+            "dependencies": ["WS-001"]
+        },
+        {
+            "id": "WS-003",
+            "title": "Seguridad / autenticación base",
+            "category": "seguridad",
+            "architecture": "layered-repository-service-inertia",
+            "status": "completed",
+            "priority": "high",
+            "description": "Auth y protección de rutas/endpoints según capas: login/logout con sesiones Inertia, roles (cajero/administrador), middleware, rate limiting y sanitización.",
+            "acceptanceCriteria": [
+                "Flujo de login/logout definido por capas",
+                "Rutas o endpoints protegidos documentados",
+                "Login y logout funcionan correctamente con sesiones",
+                "Existen al menos 2 roles: cajero y administrador",
+                "Las rutas protegidas redirigen a login si no hay sesión",
+                "Rate limiting configurado para endpoints sensibles (login, API)",
+                "Middleware de autorización verifica rol antes de acceder a recursos"
+            ],
+            "guidance": {
+                "agent": [
+                    "Implementar subtareas en orden de capas",
+                    "No instalar librerías de auth/validación sin aprobación"
+                ],
+                "developer": {
+                    "goal": "Sesión y acceso controlado",
+                    "context": ["Alinear endpoints con el backend", "Form Request → Controller → Service → Repository"],
+                    "references": [".cursor/rules/project.mdc", ".cursor/rules/workflow.mdc"]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-003-1",
+                    "title": "Configurar modelo User con roles y migraciones",
+                    "status": "completed",
+                    "layer": "data",
+                    "validation": "php artisan migrate && php artisan tinker --execute=\"App\\Models\\User::factory()->create()\"",
+                    "guidance": {
+                        "agent": [
+                            "Queries solo en Repository; modelo sin lógica de flujos completos"
+                        ],
+                        "developer": {
+                            "goal": "Usuario y roles persistidos en BD",
+                            "files": ["app/Models/User.php", "database/migrations/"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-003-2",
+                    "title": "Implementar AuthController con login/logout",
+                    "status": "completed",
+                    "layer": "http",
+                    "validation": "php artisan test --filter=Auth",
+                    "guidance": {
+                        "agent": [
+                            "Controller delega a Service; validación en Form Request"
+                        ],
+                        "developer": {
+                            "goal": "Endpoints de sesión sin lógica de negocio en el controller",
+                            "files": ["app/Http/Controllers/AuthController.php", "app/Services/AuthService.php"],
+                            "references": [".cursor/rules/code-style.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-003-3",
+                    "title": "Crear páginas Vue de login y dashboard",
+                    "status": "completed",
+                    "layer": "presentation",
+                    "validation": "pnpm run build",
+                    "guidance": {
+                        "developer": {
+                            "goal": "UI de auth con Inertia + TypeScript estricto",
+                            "files": ["resources/js/Pages/Auth/Login.vue", "resources/js/Pages/Dashboard.vue"],
+                            "references": [".cursor/rules/code-style.mdc"],
+                            "avoid": ["Usar any en TypeScript"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-003-4",
+                    "title": "Implementar middleware de roles (CheckRole)",
+                    "status": "completed",
+                    "layer": "http",
+                    "validation": "php artisan test --filter=Middleware",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Autorización por rol antes del controller",
+                            "files": ["app/Http/Middleware/CheckRole.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-003-5",
+                    "title": "Configurar rate limiting y protecciones de seguridad",
+                    "status": "completed",
+                    "layer": "infra",
+                    "validation": "php artisan route:list --columns=method,uri,middleware",
+                    "guidance": {
+                        "developer": {
+                            "goal": "Límites en login y rutas sensibles",
+                            "files": ["bootstrap/app.php", "routes/web.php"],
+                            "references": [".cursor/rules/project.mdc"]
+                        }
+                    }
+                }
+            ],
+            "dependencies": ["WS-002"]
+        }
+    ]
+}
