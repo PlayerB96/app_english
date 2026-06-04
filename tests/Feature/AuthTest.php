@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Auth\MobileUserProvider;
+use App\DTOs\Auth\MobileUserValidationRowDto;
 use App\Models\MobileUser;
 use App\Repositories\Contracts\AuthRepositoryInterface;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -30,11 +31,11 @@ class AuthTest extends TestCase
     }
 
     /**
-     * @return list<object>
+     * @return list<MobileUserValidationRowDto>
      */
     private function validSpRows(string $roleCode = '00005'): array
     {
-        return [(object) [
+        return [MobileUserValidationRowDto::fromSpRow((object) [
             'l_exis_usua' => 1,
             'c_usua_codi' => 'CAJERO01',
             'c_usua_nomb' => 'Cajero Demo',
@@ -45,7 +46,7 @@ class AuthTest extends TestCase
             'c_role_nomb' => 'Caja Rapida',
             'c_nomb_sucu' => 'Sucursal Centro',
             'c_sigl_sucu' => 'CTR',
-        ]];
+        ])];
     }
 
     public function test_guest_can_view_login_page(): void
@@ -105,8 +106,30 @@ class AuthTest extends TestCase
     public function test_login_prefers_caja_rapida_when_sp_returns_multiple_roles(): void
     {
         $rows = [
-            (object) array_merge((array) $this->validSpRows('00001')[0], ['c_role_codi' => '00001', 'c_role_nomb' => 'Administrador']),
-            (object) array_merge((array) $this->validSpRows('00005')[0], ['c_role_codi' => '00005', 'c_role_nomb' => 'Caja Rapida']),
+            MobileUserValidationRowDto::fromSpRow((object) [
+                'l_exis_usua' => 1,
+                'c_usua_codi' => 'CAJERO01',
+                'c_usua_nomb' => 'Cajero Demo',
+                'c_codi_empr' => '00001',
+                'c_codi_sucu' => '01',
+                'n_tcam_vent' => 3.75,
+                'c_role_codi' => '00001',
+                'c_role_nomb' => 'Administrador',
+                'c_nomb_sucu' => 'Sucursal Centro',
+                'c_sigl_sucu' => 'CTR',
+            ]),
+            MobileUserValidationRowDto::fromSpRow((object) [
+                'l_exis_usua' => 1,
+                'c_usua_codi' => 'CAJERO01',
+                'c_usua_nomb' => 'Cajero Demo',
+                'c_codi_empr' => '00001',
+                'c_codi_sucu' => '01',
+                'n_tcam_vent' => 3.75,
+                'c_role_codi' => '00005',
+                'c_role_nomb' => 'Caja Rapida',
+                'c_nomb_sucu' => 'Sucursal Centro',
+                'c_sigl_sucu' => 'CTR',
+            ]),
         ];
 
         $this->mock(AuthRepositoryInterface::class, function ($mock) use ($rows): void {
@@ -134,7 +157,7 @@ class AuthTest extends TestCase
             $mock->shouldReceive('validateCredentials')
                 ->with('CAJERO01', 'wrong-password')
                 ->once()
-                ->andReturn([(object) [
+                ->andReturn([MobileUserValidationRowDto::fromSpRow((object) [
                     'l_exis_usua' => 0,
                     'c_usua_codi' => '',
                     'c_usua_nomb' => '',
@@ -145,7 +168,7 @@ class AuthTest extends TestCase
                     'c_role_nomb' => '',
                     'c_nomb_sucu' => '',
                     'c_sigl_sucu' => '',
-                ]]);
+                ])]);
         });
 
         $response = $this->withoutMiddleware(ThrottleRequests::class)

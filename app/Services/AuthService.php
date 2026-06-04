@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Auth\MobileUserProvider;
+use App\DTOs\Auth\MobileUserValidationRowDto;
 use App\Enums\MobileRoleCode;
 use App\Enums\UserRole;
-use App\Models\MobileUser;
 use App\Repositories\Contracts\AuthRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -18,7 +18,7 @@ class AuthService
     {
         $rows = $this->authRepository->validateCredentials($username, $password);
 
-        if ($rows === [] || (int) ($rows[0]->l_exis_usua ?? 0) !== 1) {
+        if ($rows === [] || ! $rows[0]->userExists()) {
             throw ValidationException::withMessages([
                 'username' => ['Las credenciales no coinciden con nuestros registros.'],
             ]);
@@ -32,7 +32,7 @@ class AuthService
             ]);
         }
 
-        $user = MobileUser::fromSpRow($allowedRow, $this->mapRoleCodeToUserRole($allowedRow));
+        $user = $allowedRow->toMobileUser($this->mapRoleCodeToUserRole($allowedRow));
 
         session([MobileUserProvider::SESSION_KEY => $user->toSessionArray()]);
 
@@ -52,9 +52,9 @@ class AuthService
     /**
      * Prioriza caja rápida (POS); si no existe, acepta administrador legacy.
      *
-     * @param  list<object>  $rows
+     * @param  list<MobileUserValidationRowDto>  $rows
      */
-    private function resolveLoginRow(array $rows): ?object
+    private function resolveLoginRow(array $rows): ?MobileUserValidationRowDto
     {
         foreach ([MobileRoleCode::CajaRapida, MobileRoleCode::Administrador] as $role) {
             $row = $this->findRowWithRole($rows, $role->value);
@@ -67,9 +67,9 @@ class AuthService
         return null;
     }
 
-    private function mapRoleCodeToUserRole(object $row): UserRole
+    private function mapRoleCodeToUserRole(MobileUserValidationRowDto $row): UserRole
     {
-        return match (trim((string) ($row->c_role_codi ?? ''))) {
+        return match ($row->roleCode) {
             MobileRoleCode::Administrador->value => UserRole::Administrator,
             MobileRoleCode::CajaRapida->value => UserRole::Cashier,
             default => UserRole::Cashier,
@@ -77,12 +77,12 @@ class AuthService
     }
 
     /**
-     * @param  list<object>  $rows
+     * @param  list<MobileUserValidationRowDto>  $rows
      */
-    private function findRowWithRole(array $rows, string $roleCode): ?object
+    private function findRowWithRole(array $rows, string $roleCode): ?MobileUserValidationRowDto
     {
         foreach ($rows as $row) {
-            if (trim((string) ($row->c_role_codi ?? '')) === $roleCode) {
+            if ($row->roleCode === $roleCode) {
                 return $row;
             }
         }

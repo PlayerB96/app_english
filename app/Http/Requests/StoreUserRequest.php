@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+/**
+ * @internal Plantilla WS-002 — solo tests de patrón (RequestTest). No usar en producción.
+ */
 class StoreUserRequest extends BaseFormRequest
 {
     public function rules(): array

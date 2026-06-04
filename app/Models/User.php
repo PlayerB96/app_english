@@ -3,8 +3,11 @@
 namespace App\Models;
 
 /**
- * Plantilla del patrón WS-002 y tests de ejemplo. No usar en auth ni rutas de producción
- * (login real: MobileUser + AuthRepository / SP legacy).
+ * Plantilla del patrón WS-002 y tests de ejemplo.
+ *
+ * @internal Solo para tests de patrón (RepositoryTest, RequestTest). No usar en auth ni rutas de producción.
+ *
+ * @property-read UserRole $role
  */
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
@@ -36,7 +39,9 @@ class User extends Authenticatable
 
     public function hasRole(UserRole $role): bool
     {
-        return $this->role === $role;
+        $current = $this->getAttribute('role');
+
+        return $current instanceof UserRole && $current === $role;
     }
 
     public function isAdministrator(): bool

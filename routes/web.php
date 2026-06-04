@@ -36,11 +36,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
 
+    Route::get('/pos', function () {
+        return Inertia::render('Pos/Placeholder');
+    })->name('pos.index');
+
     Route::middleware('role:administrator')->group(function () {
         Route::get('/admin', function () {
-            return Inertia::render('Dashboard', [
-                'section' => 'admin',
-            ]);
+            return Inertia::render('Admin/Placeholder');
         })->name('admin.panel');
     });
 });

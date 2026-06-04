@@ -3,6 +3,7 @@
 El esquema de negocio vive en SQL Server existente (`DBINFOSAP_ALM`). **No se usan migraciones Laravel** para crear tablas.
 
 - Acceso a datos legacy: **stored procedures** encapsulados en `app/Repositories/`.
+- Catálogo de SPs y contratos DBA: [`sp-catalog.md`](sp-catalog.md).
 - El DBA mantiene el esquema; la app no ejecuta DDL.
 
 Los factories en `database/factories/` se usan solo en tests (objetos en memoria, sin persistir tablas).

@@ -11,9 +11,7 @@ use Inertia\Response;
 
 class AuthController extends Controller
 {
-    public function __construct(private AuthService $auth)
-    {
-    }
+    public function __construct(private AuthService $auth) {}
 
     public function create(): Response
     {
