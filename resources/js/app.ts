@@ -5,7 +5,7 @@ import { createInertiaApp } from "@inertiajs/vue3";
 import { createPinia } from "pinia";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 
-const appName = import.meta.env.VITE_APP_NAME || "Caja Rápida";
+const appName = import.meta.env.VITE_APP_NAME || "Dev English";
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

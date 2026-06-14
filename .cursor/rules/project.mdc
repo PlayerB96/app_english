@@ -7,9 +7,10 @@ globs: ["**/*"]
 
 ## Contexto
 - Tipo: Web Service (Fullstack)
-- Stack: Laravel 13 + Vue 3 (Inertia.js) + PostgreSQL (`pgsql`) + pnpm
+- Stack: Laravel 13 + Vue 3 (Inertia.js) + **PostgreSQL** (`pgsql`) + pnpm
 - Descripción: Plataforma de aprendizaje de inglés para programadores. Genera preguntas en inglés con IA, sesiones interactivas con voz y seguimiento de curva de aprendizaje por desarrollador.
-- Base de datos: **PostgreSQL** propia de la aplicación. Esquema gestionado con **migraciones Laravel**.
+- Base de datos: **PostgreSQL exclusivamente**. Sin SQL Server ni stored procedures.
+- Esquema: **migraciones Laravel** (tablas) + **functions y views** en PostgreSQL (SQL versionado en el repo).
 - Despliegue: Docker; `DB_HOST` y `APP_URL` configurables por entorno; código compartido vía Git.
 
 ## Dominio funcional
@@ -27,24 +28,34 @@ globs: ["**/*"]
 - PHP **8.4.21** obligatorio
 - TypeScript estricto en el frontend (no usar `any`)
 - Gestor JS: **pnpm** (no npm/yarn en scripts ni Dockerfile)
-- Acceso a datos: **Eloquent** encapsulado en Repositories; no queries directas fuera de Repositories
-- **Migraciones Laravel** para todo el esquema de aplicación en PostgreSQL
-- `SESSION_DRIVER=database`, `CACHE_STORE=database` y `QUEUE_CONNECTION=database` permitidos (tablas Laravel en PostgreSQL)
-- No usar `DB::raw()` salvo casos justificados
+- **Solo PostgreSQL** — no usar driver `sqlsrv` ni conexiones legacy
+- Acceso a datos encapsulado en **Repositories**:
+  - CRUD y relaciones → **Eloquent**
+  - Lógica SQL compleja → **PostgreSQL functions** (`SELECT * FROM fn_...()`)
+  - Consultas agregadas / reportes → **PostgreSQL views** (`SELECT * FROM vw_...`)
+- No queries directas (`DB::`, Eloquent) fuera de Repositories
+- **Migraciones Laravel** para tablas, índices, FK y despliegue de functions/views
+- `SESSION_DRIVER=database`, `CACHE_STORE=database` y `QUEUE_CONNECTION=database` recomendados en **producción** (app y PostgreSQL en el mismo servidor)
+- En **desarrollo local**, preferir `SESSION_DRIVER=file`, `CACHE_STORE=file`, `QUEUE_CONNECTION=sync` para menor latencia
+- No usar `DB::raw()` salvo casos justificados en Repositories
 - Toda validación pasa por Form Requests, nunca validar en el Controller
 - Integración IA: llamadas desde **Services** del backend; **nunca** exponer API keys en el frontend
-- Voz: captura y reconocimiento en el **frontend** (Web Speech API u otro SDK acordado); el backend recibe texto transcrito para evaluación
+- Voz: captura y reconocimiento en el **frontend**; el backend recibe texto transcrito
 - No instalar paquetes sin justificación documentada
-- Iconos UI: **@lucide/vue** (no otras librerías de iconos sin acuerdo)
+- Iconos UI: **@lucide/vue**
 
-## Convenciones
-- Idioma del código: inglés (variables, funciones, clases)
-- Idioma de documentación y commits: español
-- Idioma de la UI para el usuario: español (mensajes, labels); **contenido pedagógico en inglés**
-- Formato de commits: Conventional Commits (feat:, fix:, chore:, docs:, refactor:)
-- Branch principal: main
-- Nombres de rutas: kebab-case (ej: `/practice`, `/learning-curve`)
-- Modelos Eloquent: singular PascalCase (ej: `Question`, `PracticeSession`, `LearningTrack`)
+## Convenciones PostgreSQL
+
+| Artefacto | Prefijo | Ejemplo |
+|-----------|---------|---------|
+| Function | `fn_` | `fn_calculate_learning_level(user_id bigint)` |
+| View | `vw_` | `vw_developer_progress_summary` |
+| Tabla | snake_case plural | `practice_sessions` |
+
+- Functions y views: SQL en `database/sql/functions/` y `database/sql/views/`
+- Catálogo de contratos: `database/pg-catalog.md`
+- Despliegue: migración Laravel ejecuta el SQL (`DB::unprepared()` o `Schema::`-compatible)
+- **No** usar stored procedures estilo SQL Server (`EXEC`, `dbo.usp_*`)
 
 ## Estructura
 
@@ -56,90 +67,102 @@ app/
 ├── Http/Middleware/        → Middleware personalizado
 ├── Models/                 → Modelos Eloquent (User, Question, etc.)
 ├── Services/               → Lógica de negocio + orquestación IA
-├── Repositories/           → Eloquent y consultas encapsuladas
+├── Repositories/           → Eloquent + llamadas a functions/views PostgreSQL
 ├── DTOs/                   → Objetos de transferencia (IA, progreso, etc.)
 └── Enums/                  → UserRole, QuestionType, SkillLevel, etc.
 
 database/
-├── migrations/             → Esquema PostgreSQL
+├── migrations/             → Tablas + despliegue de functions/views
+├── sql/
+│   ├── functions/          → CREATE OR REPLACE FUNCTION ...
+│   └── views/              → CREATE OR REPLACE VIEW ...
+├── pg-catalog.md           → Catálogo de functions y views
 ├── seeders/                → Datos iniciales (tracks, niveles)
 └── factories/              → Factories para tests
 
 resources/js/
 ├── Pages/                  → Páginas Vue (Inertia)
-├── Components/             → Componentes reutilizables (VoiceInput, QuestionCard, etc.)
+├── Components/             → VoiceInput, QuestionCard, etc.
 ├── Composables/            → useSpeechRecognition, usePracticeSession, etc.
-├── Stores/                 → Pinia (sesión de práctica, progreso)
-├── Layouts/                → Layouts de la app
-├── types/                  → TypeScript (auth, API, practice, etc.)
-└── Services/               → Clientes frontend (solo endpoints propios, no IA directa)
+├── Stores/                 → Pinia
+├── Layouts/                → Layouts
+├── types/                  → TypeScript
+└── Services/               → Clientes frontend (solo endpoints propios)
 ```
 
 ## Autenticación
 
-- Login estándar Laravel con modelo `User` (email + password).
-- Roles vía `UserRole` enum (ej: `learner`, `administrator`).
+- Login: email + password vía `AuthService` → `AuthRepository` → modelo `User` (Eloquent + bcrypt).
+- Roles vía `UserRole` enum (`learner`, `administrator`).
 - Middleware `role:administrator` para panel de administración.
-- El código legacy de `MobileUser` / SP SQL Server **no aplica** a este proyecto; migrar a auth Eloquent cuando se implemente WS-003 refactorizado.
+- Usuarios demo: `UserSeeder` (`learner@app-english.test`, `admin@app-english.test`); accesos rápidos en login solo si `APP_ENV=local` y `APP_DEBUG=true`.
 - **No** configurar credenciales de BD ni de IA desde el frontend.
 
 ## Integración con IA
 
-- Servicio dedicado: `AiQuestionService` (o similar) en `app/Services/`.
-- Prompts y parámetros versionados en código o config (`config/ai.php`); no hardcodear en Controllers.
-- Generación de preguntas: contexto del track, nivel del developer, historial reciente.
-- Evaluación de respuestas: comparación semántica / criterios definidos en Service; persistir resultado en PostgreSQL.
-- Colas (`QUEUE_CONNECTION=database`) para generación asíncrona si el volumen lo requiere.
+- Servicio dedicado: `AiQuestionService` en `app/Services/`.
+- Prompts en `config/ai.php`; no hardcodear en Controllers.
+- Evaluación de respuestas en Service; persistir en PostgreSQL.
+- Colas (`QUEUE_CONNECTION=database`) para generación asíncrona si aplica.
 
 ## Voz interactiva
 
-- Frontend: composable `useSpeechRecognition` con Web Speech API (fallback a input de texto documentado).
-- Enviar transcripción al backend como respuesta del usuario; no enviar audio crudo salvo requisito explícito futuro.
-- Feedback visual: estado listening / processing / result.
+- Frontend: composable `useSpeechRecognition` con Web Speech API.
+- Enviar transcripción al backend; no enviar audio crudo salvo requisito futuro.
 
 ## Flujo de una petición (backend)
 
 ```
 HTTP Request
     → Form Request (validación + mensajes en español)
-    → Controller (orquesta, sin lógica de negocio ni queries)
+    → Controller (orquesta)
     → Service (reglas de negocio, orquestación IA)
-    → Repository (Eloquent / consultas)
-    → PostgreSQL / respuesta mapeada a DTO o modelo
+    → Repository (Eloquent | SELECT fn_* | SELECT vw_*)
+    → PostgreSQL → DTO o modelo
 
 Respuesta exitosa:
-    → API Resource (formato JSON consistente) o Inertia::render (páginas web)
+    → API Resource o Inertia::render
 
-Errores en peticiones JSON (Accept: application/json):
-    → Exception Handler en bootstrap/app.php (422 validación, 404 no encontrado, 5xx genérico)
+Errores JSON:
+    → Exception Handler (422, 404, 5xx)
 ```
-
-- Los bindings RepositoryInterface → implementación concreta viven en `RepositoryServiceProvider`.
-- Los Services dependen de interfaces (`XxxRepositoryInterface`), no de clases concretas de repositorio.
-- Detalle de implementación por capa: ver `code-style.mdc`.
-- Proceso de tareas del agente: ver `workflow.mdc` y `issues/README.md`.
 
 ## Responsabilidad por capa
 
 | Capa | Ubicación | Responsabilidad | No debe contener |
 |------|-----------|-------------------|------------------|
-| **Form Request** | `app/Http/Requests/` | Validar entrada, autorización básica, mensajes en español | Lógica de negocio, queries, formateo de respuesta |
-| **Controller** | `app/Http/Controllers/` | Recibir request validado, llamar al Service, devolver Resource o vista Inertia | Validación inline, Eloquent, reglas de negocio |
-| **Service** | `app/Services/` | Reglas de negocio, orquestar repos e IA, excepciones de dominio | Queries Eloquent directas |
-| **Repository** | `app/Repositories/` | Consultas Eloquent, scopes, persistencia | Validación HTTP, respuestas JSON, prompts de IA |
-| **Model** | `app/Models/` | Relaciones, casts, scopes simples | Lógica de negocio compleja |
-| **Resource** | `app/Http/Resources/` | Transformar modelos a JSON; ocultar campos sensibles | Validación, persistencia |
-| **Provider** | `app/Providers/` | Bindings interfaz → implementación (IoC), rate limiting | Lógica de negocio |
+| **Form Request** | `app/Http/Requests/` | Validar entrada, mensajes en español | Lógica de negocio, queries |
+| **Controller** | `app/Http/Controllers/` | Orquestar Service, devolver Resource/vista | Validación inline, queries |
+| **Service** | `app/Services/` | Reglas de negocio, IA, orquestación | Queries directas |
+| **Repository** | `app/Repositories/` | Eloquent, `fn_*`, `vw_*`; mapeo a DTOs | Validación HTTP, prompts IA |
+| **Model** | `app/Models/` | Relaciones, casts, scopes | Lógica de negocio compleja |
+| **Resource** | `app/Http/Resources/` | Formato JSON de salida | Persistencia |
 
-### Ejemplo de cadena (generar pregunta)
+### Repositories (convención PostgreSQL)
 
-1. `GenerateQuestionRequest` valida `track_id`, `level`.
-2. `PracticeController` llama a `PracticeService::generateQuestion()`.
-3. `PracticeService` obtiene contexto del developer vía `ProgressRepository`, invoca `AiQuestionService`, persiste vía `QuestionRepository`.
-4. `QuestionResource` devuelve JSON o Inertia renderiza la sesión.
+```php
+// Function
+$rows = DB::select('SELECT * FROM fn_developer_learning_summary(?)', [$userId]);
+
+// View
+$rows = DB::select('SELECT * FROM vw_track_leaderboard WHERE track_id = ?', [$trackId]);
+
+// Eloquent (CRUD)
+$this->model->newQuery()->where('user_id', $userId)->get();
+```
+
+- Mapear filas de functions/views a DTOs en el Repository; el Service no parsea `stdClass`.
+- Documentar cada function/view en `database/pg-catalog.md` antes de implementar.
+
+### Ejemplo de cadena (curva de aprendizaje)
+
+1. `ProgressController` llama a `ProgressService::getLearningCurve()`.
+2. `ProgressService` usa `ProgressRepositoryInterface::fetchSummary()`.
+3. `ProgressRepository` ejecuta `SELECT * FROM vw_developer_progress_summary WHERE user_id = ?`.
+4. `ProgressResource` devuelve JSON al frontend.
 
 ## Infraestructura local obligatoria
 
 - Carpetas escribibles: `storage/framework/sessions`, `storage/framework/cache/data`, `bootstrap/cache`.
-- PostgreSQL accesible (Docker Compose local o instancia externa).
-- Variables IA en `.env`: `AI_PROVIDER`, `OPENAI_API_KEY` (o equivalente); nunca commitear valores reales.
+- PostgreSQL accesible (Docker Compose o instancia externa).
+- Variables IA en `.env`: `AI_PROVIDER`, `OPENAI_API_KEY`; nunca commitear valores reales.

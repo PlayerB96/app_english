@@ -22,6 +22,6 @@ class ResourceTest extends TestCase
         $this->assertSame('User', $resource['data']['type']);
         $this->assertSame('Maria', $resource['data']['attributes']['name']);
         $this->assertSame('maria@example.com', $resource['data']['attributes']['email']);
-        $this->assertSame('cashier', $resource['data']['attributes']['role']);
+        $this->assertSame('learner', $resource['data']['attributes']['role']);
     }
 }

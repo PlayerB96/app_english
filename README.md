@@ -25,7 +25,7 @@ Plataforma de aprendizaje de **inglés para programadores**. Genera preguntas en
 - PHP 8.4.21 con extensión `pdo_pgsql`
 - Composer 2.x
 - Node.js 20+ y **pnpm**
-- PostgreSQL 14+ (local o Docker)
+- PostgreSQL 14+ (local, Docker o remoto)
 - Clave de API de proveedor IA (ej. OpenAI) para generación de preguntas
 
 ## Arquitectura
@@ -34,25 +34,44 @@ Patrón **layered-repository-service-inertia**:
 
 ```
 HTTP → Form Request → Controller → Service → Repository → PostgreSQL
+                                              ↳ Eloquent (CRUD)
+                                              ↳ fn_* / vw_* (functions y views)
                                               ↘ AiQuestionService → API IA
 ```
 
-- Esquema gestionado con **migraciones Laravel** en PostgreSQL.
-- Lógica de negocio e integración IA en `app/Services/`.
-- Acceso a datos encapsulado en `app/Repositories/` (Eloquent).
-- Voz y captura de respuestas en el frontend; el backend evalúa texto transcrito.
+- Esquema de **tablas** vía migraciones Laravel.
+- **Functions** (`fn_*`) y **views** (`vw_*`) versionadas en `database/sql/` (catálogo en `pg-catalog.md`).
+- Auth: `AuthService` → `AuthRepository` (Eloquent + bcrypt).
 
 Detalle de capas: [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc).
 
 ## Dominio funcional
 
-| Módulo | Descripción |
-|--------|-------------|
-| **Auth** | Registro/login de developers |
-| **Learning tracks** | Rutas temáticas (vocabulario dev, entrevistas, docs) |
-| **Practice** | Sesiones con preguntas generadas por IA |
-| **Voice** | Respuestas habladas transcritas a texto |
-| **Progress** | Curva de aprendizaje, nivel, rachas, precisión |
+| Módulo | Descripción | Estado |
+|--------|-------------|--------|
+| **Auth** | Login email/password, roles `learner` / `administrator` | Implementado |
+| **Learning tracks** | Rutas temáticas (vocabulario dev, entrevistas, docs) | Tablas listas, UI pendiente |
+| **Practice** | Sesiones con preguntas generadas por IA | Pendiente (WS-012+) |
+| **Voice** | Respuestas habladas transcritas a texto | Pendiente (WS-013) |
+| **Progress** | Curva de aprendizaje, nivel, rachas | Pendiente (WS-014) |
+
+## Autenticación
+
+| Aspecto | Detalle |
+|---------|---------|
+| Login | Email + password contra tabla `users` |
+| Flujo | `LoginRequest` → `AuthController` → `AuthService` → `AuthRepository` |
+| Roles | `learner` (práctica) · `administrator` (panel `/admin`) |
+| Middleware | `role:administrator` en rutas admin |
+
+### Usuarios de prueba (después de `db:seed`)
+
+| Email | Contraseña | Rol |
+|-------|------------|-----|
+| `learner@app-english.test` | `password` | `learner` |
+| `admin@app-english.test` | `password` | `administrator` |
+
+En **modo desarrollo** (`APP_ENV=local` + `APP_DEBUG=true`), el login muestra accesos rápidos para rellenar credenciales.
 
 ## Configuración `.env`
 
@@ -63,11 +82,19 @@ DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=app_english
-DB_USERNAME=app
+DB_USERNAME=app_english
 DB_PASSWORD=secret
 ```
 
-### Laravel (sesión, caché, colas)
+### Laravel — desarrollo local (recomendado)
+
+```env
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+```
+
+### Laravel — producción (mismo servidor que PostgreSQL)
 
 ```env
 SESSION_DRIVER=database
@@ -87,7 +114,7 @@ Copia desde [`.env.example`](.env.example).
 
 ## Levantar el entorno de desarrollo
 
-### Opción 1: Local
+### Local (PostgreSQL en Docker o nativo)
 
 ```bash
 composer install
@@ -97,6 +124,7 @@ cp .env.example .env
 # Editar DB_* y OPENAI_API_KEY
 php artisan key:generate
 php artisan migrate
+php artisan db:seed
 php artisan config:clear
 
 # Terminales separadas:
@@ -104,12 +132,13 @@ php artisan serve
 pnpm run dev
 ```
 
-### Opción 2: Docker (PostgreSQL embebido)
+### Docker Compose (app + PostgreSQL del proyecto)
 
 ```bash
 cp .env.example .env
 docker compose up -d
 docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed
 ```
 
 ## Estructura del proyecto
@@ -119,46 +148,56 @@ app/
 ├── Http/Controllers/       → Controladores
 ├── Http/Requests/          → Form Requests
 ├── Http/Resources/         → API Resources
-├── Models/                 → User, Question, PracticeSession, etc.
-├── Services/               → PracticeService, AiQuestionService, ProgressService
-├── Repositories/           → Acceso Eloquent
-└── DTOs/                   → Transferencia de datos
+├── Models/                 → User (+ modelos de dominio pendientes)
+├── Services/               → AuthService, PracticeService (futuro), etc.
+├── Repositories/           → AuthRepository, acceso Eloquent / fn_* / vw_*
+└── Enums/                  → UserRole
 
 database/
-├── migrations/             → Esquema PostgreSQL
-└── seeders/                → Tracks y datos demo
+├── migrations/             → 14 tablas (users, tracks, sessions, questions…)
+├── sql/functions/          → Functions PostgreSQL (fn_*)
+├── sql/views/              → Views PostgreSQL (vw_*)
+├── pg-catalog.md           → Catálogo SQL
+└── seeders/                → UserSeeder (+ LearningTrackSeeder pendiente)
 
 resources/js/
-├── Pages/                  → Dashboard, Practice, LearningCurve
-├── Components/             → QuestionCard, VoiceInput
-├── Composables/            → useSpeechRecognition
-└── types/                  → TypeScript
+├── Pages/Auth/Login.vue    → Login + accesos rápidos en dev
+├── Pages/Practice/         → Placeholder
+├── Layouts/AppLayout.vue
+└── types/auth.ts
 ```
 
 ## Comandos útiles
 
 ```bash
-# Base de datos
 php artisan migrate
 php artisan db:seed
+php artisan migrate:status
+php artisan db:show
 
-# Tests
 php artisan test
 pnpm run type-check
-
-# Calidad
 vendor/bin/pint
 composer analyse
 pnpm run lint
-
-# Config
-php artisan config:clear
 ```
 
 ## Tracking de actividades
 
-Las actividades de desarrollo se gestionan en `issues/ws/activities.json`. Consultar `issues/README.md` para el protocolo de trabajo.
+Backlog en `issues/ws/activities.json`. Protocolo: [`issues/README.md`](issues/README.md).
 
-## Estado del pivot
+| ID | Estado | Descripción |
+|----|--------|-------------|
+| WS-010 | Completado | Migraciones PostgreSQL + tablas core |
+| WS-011 | Completado | Auth Eloquent + UserSeeder + login dev |
+| WS-012 | Pendiente | Integración IA (preguntas) |
+| WS-013 | Pendiente | Práctica con voz |
+| WS-014 | Pendiente | Curva de aprendizaje (learner) |
+| WS-015 | Pendiente | Panel de administración (KPIs, reportes, tracks, usuarios) |
 
-El repositorio conserva la **estructura de capas** del scaffold original (Laravel + Inertia + Vue) pero el dominio cambió de POS/caja rápida a aprendizaje de inglés. El código legacy (`MobileUser`, SP SQL Server, rutas `/pos`) se refactorizará progresivamente según el backlog en `activities.json`.
+## Estado actual
+
+- **PostgreSQL** con migraciones aplicadas (local o remoto).
+- **Auth** por email con `AuthRepository` (Eloquent); roles `learner` / `administrator`.
+- **Sin código legacy** del POS (SQL Server / MobileUser eliminado).
+- **Pendiente:** modelos Eloquent de dominio, `LearningTrackSeeder`, IA, voz y dashboard de progreso.

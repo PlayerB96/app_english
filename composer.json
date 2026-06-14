@@ -32,7 +32,10 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "exclude-from-classmap": [
+            "vendor/phpunit/php-code-coverage/src/StaticAnalysis/Visitor/"
+        ]
     },
     "scripts": {
         "setup": [

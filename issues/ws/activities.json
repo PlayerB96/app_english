@@ -31,13 +31,13 @@
             "title": "PostgreSQL: migraciones y modelos base",
             "category": "arquitectura",
             "architecture": "layered-repository-service-inertia",
-            "status": "pending",
+            "status": "completed",
             "priority": "high",
-            "description": "Esquema PostgreSQL con migraciones Laravel para users, learning_tracks, practice_sessions, questions, answers y progress_snapshots.",
+            "description": "Esquema PostgreSQL: migraciones Laravel (tablas core) + estructura database/sql/ para functions y views. Catálogo pg-catalog.md.",
             "acceptanceCriteria": [
                 "php artisan migrate ejecuta sin errores en PostgreSQL",
-                "Modelos Eloquent con relaciones y casts definidos",
-                "Seeders con tracks iniciales (dev vocabulary, interviews, documentation)"
+                "Tablas: users, learning_tracks, practice_sessions, questions, answers, progress_snapshots + Laravel (sessions, cache, jobs)",
+                "Estructura database/sql/functions y database/sql/views preparada"
             ],
             "guidance": {
                 "developer": {
@@ -49,7 +49,7 @@
                 {
                     "id": "WS-010-1",
                     "title": "Migraciones de tablas core",
-                    "status": "pending",
+                    "status": "completed",
                     "layer": "data",
                     "validation": "php artisan migrate --pretend",
                     "guidance": {
@@ -57,7 +57,7 @@
                         "developer": {
                             "goal": "Crear migraciones users, learning_tracks, practice_sessions, questions, answers, progress_snapshots",
                             "files": ["database/migrations/"],
-                            "avoid": ["DDL fuera de migraciones", "sqlsrv"]
+                            "avoid": ["DDL fuera de migraciones", "sqlsrv", "stored procedures SQL Server"]
                         }
                     }
                 }
@@ -66,21 +66,22 @@
         },
         {
             "id": "WS-011",
-            "title": "Auth Eloquent (refactor desde MobileUser)",
+            "title": "Auth Eloquent",
             "category": "seguridad",
             "architecture": "layered-repository-service-inertia",
-            "status": "pending",
+            "status": "completed",
             "priority": "high",
-            "description": "Reemplazar autenticación legacy (SP SQL Server / MobileUser) por login email+password con User Eloquent y roles learner/administrator.",
+            "description": "Login email+password con User Eloquent, AuthRepository, UserSeeder, cuentas dev en login y eliminación de código legacy POS.",
             "acceptanceCriteria": [
-                "Registro y login funcionan contra tabla users",
-                "Tests AuthTest actualizados sin mocks de SP",
-                "MobileUser y AuthRepository legacy eliminados o deprecados"
+                "Login funciona contra tabla users",
+                "AuthService → AuthRepository (Eloquent + bcrypt)",
+                "UserSeeder con learner y administrator",
+                "Código legacy MobileUser eliminado"
             ],
             "guidance": {
                 "developer": {
-                    "goal": "Auth alineada al nuevo dominio",
-                    "references": [".cursor/rules/project.mdc"]
+                    "goal": "Auth alineada al dominio app_english",
+                    "references": [".cursor/rules/project.mdc", "README.md"]
                 }
             },
             "subtasks": [],
@@ -151,6 +152,119 @@
             },
             "subtasks": [],
             "dependencies": ["WS-013"]
+        },
+        {
+            "id": "WS-015",
+            "title": "Panel de administración",
+            "category": "feature",
+            "architecture": "layered-repository-service-inertia",
+            "status": "pending",
+            "priority": "high",
+            "description": "Experiencia administrator separada del learner: KPIs globales (usuarios, prácticas completadas, tracks activos, precisión promedio), reportes por learner/track, gestión de learning_tracks y listado de usuarios learners.",
+            "acceptanceCriteria": [
+                "Menú distinto: administrator ve Dashboard admin + Administración; learner no accede a /admin/*",
+                "KPIs en /admin: total learners, prácticas completadas/activas, tracks activos, precisión promedio",
+                "Listado de learners con sesiones completadas, última práctica y nivel estimado",
+                "CRUD básico de learning_tracks (crear, editar, activar/desactivar)",
+                "Reporte por track: prácticas y precisión agregada",
+                "Capas: AdminController → AdminService → AdminRepository (Eloquent / vw_* si aplica)"
+            ],
+            "guidance": {
+                "agent": [
+                    "Implementar después de WS-014 para que KPIs y reportes tengan datos reales de practice_sessions, answers y progress_snapshots"
+                ],
+                "developer": {
+                    "goal": "Panel admin para supervisar la plataforma y configurar contenido para learners",
+                    "references": [".cursor/rules/project.mdc", "database/pg-catalog.md", "README.md"],
+                    "context": [
+                        "Learner: dashboard personal, /practice, /tracks",
+                        "Administrator: /admin (KPIs), /admin/users, /admin/tracks, /admin/reports",
+                        "Opcional: view PostgreSQL vw_developer_progress_summary para resumen"
+                    ]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-015-1",
+                    "title": "Backend: AdminRepository, AdminService y KPIs",
+                    "status": "pending",
+                    "layer": "data",
+                    "validation": "php artisan test --filter=Admin",
+                    "guidance": {
+                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "developer": {
+                            "goal": "Consultas agregadas: users, practice_sessions, learning_tracks, answers, progress_snapshots",
+                            "files": [
+                                "app/Repositories/Contracts/AdminRepositoryInterface.php",
+                                "app/Repositories/AdminRepository.php",
+                                "app/Services/AdminService.php",
+                                "app/DTOs/Admin/AdminDashboardStatsDto.php"
+                            ],
+                            "avoid": ["Queries en Controller o Service sin Repository"]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-015-2",
+                    "title": "HTTP: AdminController, rutas /admin/* y middleware",
+                    "status": "pending",
+                    "layer": "http",
+                    "validation": "php artisan route:list --path=admin",
+                    "guidance": {
+                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "developer": {
+                            "goal": "Rutas protegidas role:administrator; redirect admin tras login a /admin",
+                            "files": [
+                                "app/Http/Controllers/AdminController.php",
+                                "routes/web.php"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-015-3",
+                    "title": "Presentation: dashboard admin con KPIs y reportes",
+                    "status": "pending",
+                    "layer": "presentation",
+                    "validation": "pnpm run type-check",
+                    "guidance": {
+                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "developer": {
+                            "goal": "Páginas Vue: Admin/Dashboard, Admin/Users/Index, Admin/Tracks/Index, Admin/Reports",
+                            "files": [
+                                "resources/js/Pages/Admin/Dashboard.vue",
+                                "resources/js/Pages/Admin/Users/Index.vue",
+                                "resources/js/Pages/Admin/Tracks/Index.vue",
+                                "resources/js/Layouts/AppLayout.vue"
+                            ],
+                            "examples": [
+                                "Tarjetas: usuarios, prácticas completadas, tracks activos, precisión",
+                                "Tabla learners: nombre, email, sesiones, última práctica",
+                                "Tabla tracks: nombre, slug, dificultad, sesiones, activo"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-015-4",
+                    "title": "CRUD learning_tracks y LearningTrackSeeder",
+                    "status": "pending",
+                    "layer": "data",
+                    "validation": "php artisan db:seed --class=LearningTrackSeeder",
+                    "guidance": {
+                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "developer": {
+                            "goal": "Admin puede crear/editar tracks; seeder con dev vocabulary, interviews, documentation",
+                            "files": [
+                                "database/seeders/LearningTrackSeeder.php",
+                                "app/Http/Requests/Admin/StoreLearningTrackRequest.php",
+                                "app/Http/Requests/Admin/UpdateLearningTrackRequest.php"
+                            ]
+                        }
+                    }
+                }
+            ],
+            "dependencies": ["WS-014"]
         }
     ]
 }

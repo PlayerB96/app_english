@@ -10,10 +10,12 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Sin seeders: el esquema y datos de negocio vienen de SQL Server legacy (SPs).
+     * Seeders de datos demo (tracks, niveles). Ejecutar tras migrate.
      */
     public function run(): void
     {
-        //
+        $this->call([
+            UserSeeder::class,
+        ]);
     }
 }

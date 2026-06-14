@@ -2,12 +2,13 @@
 
 namespace App\Repositories\Contracts;
 
-use App\DTOs\Auth\MobileUserValidationRowDto;
+use App\Models\User;
 
 interface AuthRepositoryInterface
 {
     /**
-     * @return list<MobileUserValidationRowDto>
+     * Valida email + password contra la tabla users.
+     * Retorna el usuario autenticado o null si las credenciales no son válidas.
      */
-    public function validateCredentials(string $username, string $password): array;
+    public function authenticate(string $email, string $password): ?User;
 }

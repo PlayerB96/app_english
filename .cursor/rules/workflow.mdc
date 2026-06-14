@@ -40,7 +40,7 @@ Campos relevantes: `id`, `title`, `status`, `layer`, `validation`, `guidance`.
 |--------------------|--------------------------------|
 | `infra` | Composer, pnpm, Docker, PostgreSQL, bootstrap, providers, rate limiting |
 | `http` | Controllers, Form Requests, Resources, Middleware |
-| `data` | Models, Repositories, DTOs, **migraciones** |
+| `data` | Models, Repositories, DTOs, migraciones, SQL PostgreSQL (`database/sql/`) |
 | `presentation` | Páginas y componentes Vue/Inertia, composables de voz |
 
 ### Guidance en subtareas

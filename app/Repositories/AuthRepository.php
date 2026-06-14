@@ -2,25 +2,20 @@
 
 namespace App\Repositories;
 
-use App\DTOs\Auth\MobileUserValidationRowDto;
+use App\Models\User;
 use App\Repositories\Contracts\AuthRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AuthRepository implements AuthRepositoryInterface
 {
-    /**
-     * @return list<MobileUserValidationRowDto>
-     */
-    public function validateCredentials(string $username, string $password): array
+    public function authenticate(string $email, string $password): ?User
     {
-        $rows = DB::connection('sqlsrv')->select(
-            'EXEC dbo.usp_movil_valida_usu_pwd_2 ?, ?',
-            [$username, $password],
-        );
+        $user = User::query()->where('email', $email)->first();
 
-        return array_map(
-            static fn (object $row): MobileUserValidationRowDto => MobileUserValidationRowDto::fromSpRow($row),
-            $rows,
-        );
+        if ($user === null || ! Hash::check($password, $user->getAuthPassword())) {
+            return null;
+        }
+
+        return $user;
     }
 }

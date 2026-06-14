@@ -30,15 +30,15 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'role' => UserRole::Cashier,
+            'role' => UserRole::Learner,
             'remember_token' => Str::random(10),
         ];
     }
 
-    public function cashier(): static
+    public function learner(): static
     {
         return $this->state(fn (array $attributes) => [
-            'role' => UserRole::Cashier,
+            'role' => UserRole::Learner,
         ]);
     }
 

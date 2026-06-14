@@ -15,7 +15,9 @@ class AuthController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Auth/Login', [
+            'showDevAccounts' => app()->isLocal() && config('app.debug'),
+        ]);
     }
 
     public function store(LoginRequest $request): RedirectResponse
@@ -23,7 +25,7 @@ class AuthController extends Controller
         $validated = $request->validated();
 
         $this->auth->login(
-            $validated['username'],
+            $validated['email'],
             $validated['password'],
             (bool) ($validated['remember'] ?? false),
         );

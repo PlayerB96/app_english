@@ -1,15 +1,9 @@
-export type UserRole = "cashier" | "administrator";
+export type UserRole = "learner" | "administrator";
 
 export interface AuthUser {
-    code: string;
+    id: number;
     name: string;
-    companyCode: string;
-    branchCode: string;
-    exchangeRate: number;
-    roleCode: string;
-    roleName: string;
-    branchName: string;
-    branchSigla: string;
+    email: string;
     role: UserRole;
 }
 
@@ -22,4 +16,10 @@ export interface PageProps {
     flash: {
         status?: string;
     };
+}
+
+export interface DevAccount {
+    email: string;
+    password: string;
+    role: UserRole;
 }

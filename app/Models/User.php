@@ -3,13 +3,8 @@
 namespace App\Models;
 
 /**
- * Plantilla del patrón WS-002 y tests de ejemplo.
- *
- * @internal Solo para tests de patrón (RepositoryTest, RequestTest). No usar en auth ni rutas de producción.
- *
  * @property-read UserRole $role
  */
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -49,8 +44,8 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::Administrator);
     }
 
-    public function isCashier(): bool
+    public function isLearner(): bool
     {
-        return $this->hasRole(UserRole::Cashier);
+        return $this->hasRole(UserRole::Learner);
     }
 }

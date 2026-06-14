@@ -78,7 +78,7 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 |-------|--------|
 | `infra` | Tooling, bootstrap, providers, Docker, PostgreSQL, rate limiting |
 | `http` | Controllers, Requests, Resources, Middleware |
-| `data` | Models, Repositories, DTOs, **migraciones** |
+| `data` | Models, Repositories, DTOs, migraciones, SQL (`database/sql/`) |
 | `presentation` | Vue/Inertia, composables de voz (`resources/js/`) |
 
 ## Convención de IDs

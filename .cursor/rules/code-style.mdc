@@ -21,16 +21,20 @@ globs: ["**/*"]
 - Integración IA solo en Services; encapsular prompts y parsing de respuestas
 
 ### Repositories
-- **Eloquent** encapsulado en Repositories; declarar métodos en interfaz
+- **Eloquent** para CRUD y relaciones; declarar en interfaz
+- **PostgreSQL functions** (`fn_*`): `DB::select('SELECT * FROM fn_nombre(?, ?)', [$a, $b])`
+- **PostgreSQL views** (`vw_*`): `DB::select('SELECT * FROM vw_nombre WHERE ...', [...])`
+- SQL de functions/views versionado en `database/sql/`; desplegado vía migraciones
 - Interfaz + implementación para facilitar testing (mock en Feature tests)
-- Los Services consumen Repositories, nunca acceden a `DB::` o `Model::query()` directamente
-- Consultas complejas: scopes en Model o métodos privados en Repository, no en Service
+- Los Services consumen Repositories, nunca acceden a `DB::` o Eloquent directamente
+- Mapear filas de functions/views a DTOs en el Repository
+- **No** usar stored procedures SQL Server (`EXEC`, `dbo.usp_*`) ni driver `sqlsrv`
 
 ### Autenticación
 - Modelo `User` Eloquent con `Authenticatable`
-- Login por **email** + password (hash bcrypt/argon)
+- Login por **email** + password; validación en `AuthRepository::authenticate()`
+- `AuthService` orquesta login/logout; no queries directas en Service
 - Roles vía `UserRole` enum; middleware `CheckRole` para rutas admin
-- Eliminar dependencia de `MobileUser` / stored procedures al refactorizar auth
 
 ### Modelos Eloquent
 - Definir `$fillable` explícitamente, nunca usar `$guarded = []`
@@ -43,11 +47,12 @@ globs: ["**/*"]
 - Mensajes de error en español configurados en `lang/es/validation.php`
 - Rules personalizadas en `app/Rules/`
 
-### Migraciones
-- **Sí se usan migraciones Laravel** contra PostgreSQL
-- Una migración por cambio lógico de esquema; nombres descriptivos
-- Índices en FK y columnas de búsqueda frecuente (`user_id`, `track_id`, `created_at`)
-- Seeders para tracks iniciales y datos de demo
+### Migraciones y SQL PostgreSQL
+- **Migraciones Laravel** para tablas, índices, FK
+- Functions y views: archivos `.sql` en `database/sql/functions/` y `database/sql/views/`
+- Migración dedicada por function/view (o grupo lógico) que ejecute el SQL
+- Catálogo actualizado en `database/pg-catalog.md` (parámetros, columnas de retorno, estado)
+- Prefijos: `fn_` (functions), `vw_` (views)
 
 ## Vue 3 / TypeScript
 
