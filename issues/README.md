@@ -1,4 +1,4 @@
-# Issues & Activities — ln1_caja_rapida
+# Issues & Activities — app_english
 
 Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitignore`).
 
@@ -6,7 +6,7 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 
 ```json
 {
-    "project": "ln1_caja_rapida",
+    "project": "app_english",
     "layer": "web-service",
     "architecture": "layered-repository-service-inertia",
     "packageManager": "composer + pnpm",
@@ -27,8 +27,8 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 
 ```json
 {
-    "id": "WS-003",
-    "title": "Seguridad / autenticación base",
+    "id": "WS-010",
+    "title": "Esquema PostgreSQL y modelos base",
     "category": "arquitectura | patron-diseno | seguridad | feature | bugfix",
     "architecture": "layered-repository-service-inertia",
     "status": "pending",
@@ -44,7 +44,7 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
         }
     },
     "subtasks": [],
-    "dependencies": ["WS-002"]
+    "dependencies": ["WS-001"]
 }
 ```
 
@@ -52,21 +52,21 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 
 ```json
 {
-    "id": "WS-003-1",
-    "title": "Título de la subtarea",
+    "id": "WS-010-1",
+    "title": "Migraciones learning_tracks y practice_sessions",
     "status": "pending",
     "layer": "infra | http | data | presentation",
-    "validation": "comando shell para verificar",
+    "validation": "php artisan migrate --pretend",
     "guidance": {
         "agent": [
             "Ejecutar validation antes de marcar completed"
         ],
         "developer": {
             "goal": "Objetivo técnico",
-            "files": ["app/Models/User.php"],
-            "examples": ["Comportamiento esperado"],
+            "files": ["database/migrations/"],
+            "examples": ["migrate exitoso"],
             "references": [".cursor/rules/code-style.mdc"],
-            "avoid": ["Anti-patrón explícito"]
+            "avoid": ["DDL fuera de migraciones"]
         }
     }
 }
@@ -76,15 +76,15 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 
 | Valor | Ámbito |
 |-------|--------|
-| `infra` | Tooling, bootstrap, providers, Docker, rate limiting |
+| `infra` | Tooling, bootstrap, providers, Docker, PostgreSQL, rate limiting |
 | `http` | Controllers, Requests, Resources, Middleware |
-| `data` | Models, Repositories (SPs), DTOs — sin migraciones Laravel |
-| `presentation` | Vue/Inertia (`resources/js/`) |
+| `data` | Models, Repositories, DTOs, **migraciones** |
+| `presentation` | Vue/Inertia, composables de voz (`resources/js/`) |
 
 ## Convención de IDs
 
 - **WS-XXX**: Web Service (actividades fullstack)
-- **WS-XXX-N**: subtareas (ej. `WS-003-1`)
+- **WS-XXX-N**: subtareas (ej. `WS-010-1`)
 
 ## Cómo trabajar con las actividades
 
@@ -94,10 +94,6 @@ Archivo: `issues/ws/activities.json` (ignorado por git vía `/issues` en `.gitig
 4. Cambiar la actividad a `in_progress`.
 5. Completar subtareas en orden: aplicar `guidance.agent` y `guidance.developer`, ejecutar `validation`, marcar `completed`.
 6. Verificar `acceptanceCriteria` de la actividad; marcar actividad `completed` y commit.
-
-## Jira
-
-Sincronizar una actividad con el proyecto LN1SCRUM usando el skill global `activities-to-jira` y el ID (ej. `activities-to-jira WS-003`). Las descripciones en Jira usan plantillas breves (padre) y guidance developer (subtareas).
 
 ## Reglas del agente
 

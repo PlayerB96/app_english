@@ -36,9 +36,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
 
-    Route::get('/pos', function () {
-        return Inertia::render('Pos/Placeholder');
-    })->name('pos.index');
+    Route::get('/practice', function () {
+        return Inertia::render('Practice/Placeholder');
+    })->name('practice.index');
+
+    Route::get('/tracks', function () {
+        return Inertia::render('Tracks/Placeholder');
+    })->name('tracks.index');
 
     Route::middleware('role:administrator')->group(function () {
         Route::get('/admin', function () {

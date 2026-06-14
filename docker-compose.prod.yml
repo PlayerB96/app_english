@@ -1,4 +1,4 @@
-# Producción: app contra SQL Server externo (sin contenedor sqlserver).
+# Producción: app contra PostgreSQL externo (sin contenedor postgres).
 # DB_HOST y APP_URL se leen del .env local de cada servidor.
 #
 # Uso:
@@ -9,7 +9,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: caja_rapida_app
+    container_name: app_english_app
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -19,8 +19,8 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
     networks:
-      - caja_rapida
+      - app_english
 
 networks:
-  caja_rapida:
+  app_english:
     driver: bridge

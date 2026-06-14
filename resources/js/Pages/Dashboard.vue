@@ -17,7 +17,7 @@ const user = computed(() => page.props.auth.user);
                     Panel de control
                 </h1>
                 <p class="text-gray-500 mb-6">
-                    Bienvenido al sistema de caja rápida.
+                    Tu progreso de inglés para desarrollo de software.
                 </p>
 
                 <div

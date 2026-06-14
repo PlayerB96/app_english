@@ -1,5 +1,5 @@
 {
-    "project": "ln1_caja_rapida",
+    "project": "app_english",
     "layer": "web-service",
     "architecture": "layered-repository-service-inertia",
     "packageManager": "composer + pnpm",
@@ -11,207 +11,53 @@
             "architecture": "layered-repository-service-inertia",
             "status": "completed",
             "priority": "high",
-            "description": "Estructura base del proyecto alineada a layered-repository-service-inertia: Laravel 13, Inertia.js, Vue 3, SQL Server, Docker Compose y entrypoint fullstack operativo.",
+            "description": "Estructura base Laravel 13 + Inertia + Vue 3 + Docker. Pivot de dominio documentado en reglas y README.",
             "acceptanceCriteria": [
-                "El proyecto compila o arranca según el stack",
-                "Estructura de carpetas acordada en Paso 4 creada",
-                "Comandos de validación del gestor de paquetes pasan",
-                "El proyecto Laravel arranca sin errores con php artisan serve",
-                "Vite compila assets de Vue 3 sin errores con pnpm run build",
-                "Una página de bienvenida se renderiza correctamente con Inertia + Vue",
-                "La conexión a SQL Server legacy funciona (sin migraciones Laravel)",
-                "Docker Compose levanta app + sqlserver + redis correctamente"
+                "Proyecto arranca con php artisan serve y pnpm run dev",
+                "Reglas Cursor y README reflejan app_english (inglés para devs, PostgreSQL, IA, voz)",
+                "Docker Compose configurado con PostgreSQL"
             ],
             "guidance": {
                 "developer": {
-                    "goal": "Base lista para features sin mezclar capas",
+                    "goal": "Base lista para features del nuevo dominio",
                     "references": ["README.md", ".cursor/rules/project.mdc"]
                 }
             },
-            "subtasks": [
-                {
-                    "id": "WS-001-1",
-                    "title": "Instalar dependencias PHP con Composer",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "composer install && php artisan --version",
-                    "guidance": {
-                        "agent": [
-                            "Solo archivos de configuración y carpetas; sin lógica de negocio",
-                            "Ejecutar validation antes de marcar completed"
-                        ],
-                        "developer": {
-                            "goal": "Tooling PHP y autoload configurados",
-                            "files": ["composer.json", "composer.lock"],
-                            "examples": ["composer install exitoso", "php artisan --version responde"],
-                            "references": ["README.md"],
-                            "avoid": ["Instalar dependencias sin permiso del usuario"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-001-2",
-                    "title": "Instalar dependencias JS con pnpm",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "pnpm install && pnpm run build",
-                    "guidance": {
-                        "agent": [
-                            "Ejecutar validation antes de marcar completed"
-                        ],
-                        "developer": {
-                            "goal": "Tooling frontend y build configurados",
-                            "files": ["package.json", "pnpm-lock.yaml", "vite.config.ts"],
-                            "examples": ["pnpm run build sin errores"],
-                            "references": ["README.md"],
-                            "avoid": ["Instalar dependencias sin permiso del usuario"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-001-3",
-                    "title": "Configurar archivos base de Laravel (bootstrap, providers, rutas)",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "php artisan route:list",
-                    "guidance": {
-                        "agent": [
-                            "Solo configuración de arranque y rutas base",
-                            "Ejecutar validation antes de marcar completed"
-                        ],
-                        "developer": {
-                            "goal": "Bootstrap y rutas base operativas",
-                            "files": ["bootstrap/app.php", "routes/web.php", "app/Providers/AppServiceProvider.php"],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-001-4",
-                    "title": "Crear layout principal y página de bienvenida con Inertia + Vue",
-                    "status": "completed",
-                    "layer": "presentation",
-                    "validation": "pnpm run build && php artisan serve --port=8001 &; sleep 3; curl -s http://localhost:8001 | head -20; kill %1",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Primera página Inertia renderizada end-to-end",
-                            "files": ["resources/js/Pages/Welcome.vue", "resources/js/Layouts/AppLayout.vue"],
-                            "references": [".cursor/rules/code-style.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-001-5",
-                    "title": "Verificar conexión SQL Server legacy",
-                    "status": "completed",
-                    "layer": "data",
-                    "validation": "php artisan tinker --execute=\"DB::connection('sqlsrv')->getPdo()\"",
-                    "guidance": {
-                        "agent": [
-                            "No crear migraciones Laravel contra la BD legacy"
-                        ],
-                        "developer": {
-                            "goal": "Conexión sqlsrv operativa; esquema gestionado por DBA",
-                            "files": ["config/database.php", "database/README.md"],
-                            "references": ["README.md", ".cursor/rules/project.mdc"],
-                            "avoid": ["php artisan migrate", "Tablas users/sessions en SQL Server"]
-                        }
-                    }
-                }
-            ],
+            "subtasks": [],
             "dependencies": []
         },
         {
-            "id": "WS-002",
-            "title": "Patrones y convenciones base",
-            "category": "patron-diseno",
+            "id": "WS-010",
+            "title": "PostgreSQL: migraciones y modelos base",
+            "category": "arquitectura",
             "architecture": "layered-repository-service-inertia",
-            "status": "completed",
+            "status": "pending",
             "priority": "high",
-            "description": "Implementar patrones base por capa según reglas del proyecto: Repository, Service, Form Request, API Resource y Exception Handler global.",
+            "description": "Esquema PostgreSQL con migraciones Laravel para users, learning_tracks, practice_sessions, questions, answers y progress_snapshots.",
             "acceptanceCriteria": [
-                "Cada capa tiene al menos un ejemplo funcional",
-                "Separación de responsabilidades verificable en el código",
-                "Existe una interfaz base RepositoryInterface con métodos CRUD estándar",
-                "Existe una clase base BaseRepository que implementa la interfaz",
-                "Existe un Service de ejemplo que consume un Repository",
-                "Form Requests validan correctamente y retornan errores en español",
-                "API Resources transforman la respuesta de modelos a formato JSON consistente"
+                "php artisan migrate ejecuta sin errores en PostgreSQL",
+                "Modelos Eloquent con relaciones y casts definidos",
+                "Seeders con tracks iniciales (dev vocabulary, interviews, documentation)"
             ],
             "guidance": {
                 "developer": {
-                    "goal": "Patrón repetible para nuevas features",
-                    "references": [".cursor/rules/code-style.mdc", ".cursor/rules/project.mdc"]
+                    "goal": "Persistencia del dominio de aprendizaje",
+                    "references": ["database/README.md", ".cursor/rules/code-style.mdc"]
                 }
             },
             "subtasks": [
                 {
-                    "id": "WS-002-1",
-                    "title": "Crear RepositoryInterface y BaseRepository",
-                    "status": "completed",
+                    "id": "WS-010-1",
+                    "title": "Migraciones de tablas core",
+                    "status": "pending",
                     "layer": "data",
-                    "validation": "php artisan test --filter=Repository",
+                    "validation": "php artisan migrate --pretend",
                     "guidance": {
+                        "agent": ["Ejecutar validation antes de marcar completed"],
                         "developer": {
-                            "goal": "Contrato y CRUD genérico de repositorio",
-                            "files": ["app/Repositories/RepositoryInterface.php", "app/Repositories/BaseRepository.php"],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-002-2",
-                    "title": "Crear ServiceProvider para binding de interfaces",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "php artisan tinker --execute=\"app(App\\Repositories\\RepositoryInterface::class)\"",
-                    "guidance": {
-                        "developer": {
-                            "goal": "IoC: interfaz enlazada a implementación",
-                            "files": ["app/Providers/RepositoryServiceProvider.php"],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-002-3",
-                    "title": "Crear Form Request base con mensajes en español",
-                    "status": "completed",
-                    "layer": "http",
-                    "validation": "php artisan test --filter=Request",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Validación HTTP centralizada en Form Requests",
-                            "files": ["app/Http/Requests/"],
-                            "references": [".cursor/rules/code-style.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-002-4",
-                    "title": "Crear Resource base para respuestas JSON",
-                    "status": "completed",
-                    "layer": "http",
-                    "validation": "php artisan test --filter=Resource",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Respuestas JSON consistentes vía Resources",
-                            "files": ["app/Http/Resources/"],
-                            "references": [".cursor/rules/code-style.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-002-5",
-                    "title": "Configurar Exception Handler global con respuestas consistentes",
-                    "status": "completed",
-                    "layer": "http",
-                    "validation": "php artisan test --filter=Exception",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Errores JSON uniformes (422, 404, 5xx)",
-                            "files": ["bootstrap/app.php"],
-                            "references": [".cursor/rules/project.mdc"]
+                            "goal": "Crear migraciones users, learning_tracks, practice_sessions, questions, answers, progress_snapshots",
+                            "files": ["database/migrations/"],
+                            "avoid": ["DDL fuera de migraciones", "sqlsrv"]
                         }
                     }
                 }
@@ -219,320 +65,92 @@
             "dependencies": ["WS-001"]
         },
         {
-            "id": "WS-003",
-            "title": "Seguridad / autenticación base",
+            "id": "WS-011",
+            "title": "Auth Eloquent (refactor desde MobileUser)",
             "category": "seguridad",
             "architecture": "layered-repository-service-inertia",
-            "status": "completed",
+            "status": "pending",
             "priority": "high",
-            "description": "Auth legacy por SP: login/logout Inertia, MobileUser en sesión, roles desde c_role_codi (00005 cajero, 00001 administrador), middleware CheckRole y rate limiting.",
+            "description": "Reemplazar autenticación legacy (SP SQL Server / MobileUser) por login email+password con User Eloquent y roles learner/administrator.",
             "acceptanceCriteria": [
-                "Flujo de login/logout definido por capas (Form Request → Controller → Service → AuthRepository)",
-                "Rutas protegidas documentadas en routes/web.php",
-                "Login y logout con MobileUser y MobileUserProvider",
-                "UserRole mapeado desde SP: 00005 → cashier, 00001 → administrator",
-                "Las rutas protegidas redirigen a login si no hay sesión",
-                "Rate limiting en POST /login (throttle:login)",
-                "Middleware role:administrator protege /admin"
+                "Registro y login funcionan contra tabla users",
+                "Tests AuthTest actualizados sin mocks de SP",
+                "MobileUser y AuthRepository legacy eliminados o deprecados"
             ],
             "guidance": {
-                "agent": [
-                    "Implementar subtareas en orden de capas",
-                    "No instalar librerías de auth/validación sin aprobación"
-                ],
                 "developer": {
-                    "goal": "Sesión y acceso controlado",
-                    "context": ["Alinear endpoints con el backend", "Form Request → Controller → Service → Repository"],
-                    "references": [".cursor/rules/project.mdc", ".cursor/rules/workflow.mdc"]
+                    "goal": "Auth alineada al nuevo dominio",
+                    "references": [".cursor/rules/project.mdc"]
                 }
             },
-            "subtasks": [
-                {
-                    "id": "WS-003-1",
-                    "title": "MobileUser, AuthRepository y mapeo de roles desde SP",
-                    "status": "completed",
-                    "layer": "data",
-                    "validation": "php artisan test --filter=Auth",
-                    "guidance": {
-                        "agent": [
-                            "SP solo en AuthRepository con DB::connection('sqlsrv')",
-                            "No usar app/Models/User.php para auth de producción"
-                        ],
-                        "developer": {
-                            "goal": "Sesión MobileUser desde usp_movil_valida_usu_pwd_2; roles 00005/00001",
-                            "files": [
-                                "app/Models/MobileUser.php",
-                                "app/Repositories/AuthRepository.php",
-                                "app/Enums/MobileRoleCode.php",
-                                "app/Auth/MobileUserProvider.php"
-                            ],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-003-2",
-                    "title": "Implementar AuthController con login/logout",
-                    "status": "completed",
-                    "layer": "http",
-                    "validation": "php artisan test --filter=Auth",
-                    "guidance": {
-                        "agent": [
-                            "Controller delega a Service; validación en Form Request"
-                        ],
-                        "developer": {
-                            "goal": "Endpoints de sesión sin lógica de negocio en el controller",
-                            "files": ["app/Http/Controllers/AuthController.php", "app/Services/AuthService.php"],
-                            "references": [".cursor/rules/code-style.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-003-3",
-                    "title": "Crear páginas Vue de login y dashboard",
-                    "status": "completed",
-                    "layer": "presentation",
-                    "validation": "pnpm run build",
-                    "guidance": {
-                        "developer": {
-                            "goal": "UI de auth con Inertia + TypeScript estricto",
-                            "files": ["resources/js/Pages/Auth/Login.vue", "resources/js/Pages/Dashboard.vue"],
-                            "references": [".cursor/rules/code-style.mdc"],
-                            "avoid": ["Usar any en TypeScript"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-003-4",
-                    "title": "Implementar middleware de roles (CheckRole)",
-                    "status": "completed",
-                    "layer": "http",
-                    "validation": "php artisan test --filter=Middleware",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Autorización por rol antes del controller",
-                            "files": ["app/Http/Middleware/CheckRole.php"],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-003-5",
-                    "title": "Configurar rate limiting y protecciones de seguridad",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "php artisan route:list --columns=method,uri,middleware",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Límites en login y rutas sensibles",
-                            "files": ["bootstrap/app.php", "routes/web.php"],
-                            "references": [".cursor/rules/project.mdc"]
-                        }
-                    }
-                }
-            ],
-            "dependencies": ["WS-002"]
+            "subtasks": [],
+            "dependencies": ["WS-010"]
         },
         {
-            "id": "WS-004",
-            "title": "Plataforma y bases técnicas (pre-módulos)",
-            "category": "arquitectura",
+            "id": "WS-012",
+            "title": "Integración IA: generación de preguntas",
+            "category": "feature",
             "architecture": "layered-repository-service-inertia",
-            "status": "completed",
+            "status": "pending",
             "priority": "high",
-            "description": "Cerrar cimientos antes de cualquier feature de negocio (WS-005+): patrón DTO desde SP, catálogo de procedimientos legacy, scaffolding frontend, shell de navegación por módulos, calidad automatizada (PHPStan + locale + CI) y aislamiento del ejemplo WS-002. Sin lógica de negocio (POS, cobros, catálogo de venta).",
+            "description": "AiQuestionService que genera preguntas en inglés contextualizadas para programadores según track y nivel.",
             "acceptanceCriteria": [
-                "Existe app/DTOs/ con al menos un DTO y mapeo Repository→DTO (sin stdClass en Services)",
-                "database/sp-catalog.md documenta SPs (login hecho; producto/cobro con estado acordado DBA)",
-                "Carpetas frontend Components/, Composables/, Stores/ y types/api.ts operativos",
-                "AppLayout con navegación por módulo y visibilidad por rol (mobile-first)",
-                "phpstan.neon configurado; composer analyse pasa; APP_LOCALE=es",
-                "Workflow CI en .github/workflows/ ejecuta test, pint, analyse, pnpm type-check",
-                "User/UserRepository/UserService no son referencia para módulos nuevos (aislados a tests)"
+                "Service genera pregunta vía API configurada en .env",
+                "Pregunta persistida en questions vinculada a practice_session",
+                "API key nunca expuesta al frontend"
             ],
             "guidance": {
-                "agent": [
-                    "Completar subtareas en orden recomendado: WS-004-1 → WS-004-2 → WS-004-3 → WS-004-4 → WS-004-5 → WS-004-6",
-                    "No implementar features de negocio (POS, carrito, cobros); solo plataforma",
-                    "WS-004-2 puede dejar SPs futuros en estado blocked hasta confirmación DBA"
-                ],
                 "developer": {
-                    "goal": "Plataforma lista para repetir el patrón en cada módulo de negocio",
-                    "context": [
-                        "BD legacy: solo SPs en Repositories",
-                        "MobileUser ya modela sesión; DTOs generalizan el patrón para otros dominios"
-                    ],
-                    "references": [
-                        ".cursor/rules/project.mdc",
-                        ".cursor/rules/code-style.mdc",
-                        ".cursor/rules/workflow.mdc",
-                        "database/README.md"
-                    ]
+                    "goal": "Motor de contenido pedagógico dinámico",
+                    "files": ["app/Services/AiQuestionService.php", "config/ai.php"]
                 }
             },
-            "subtasks": [
-                {
-                    "id": "WS-004-1",
-                    "title": "Patrón DTO y mapeo en Repository",
-                    "status": "completed",
-                    "layer": "data",
-                    "validation": "composer analyse && php artisan test",
-                    "guidance": {
-                        "agent": [
-                            "Repository devuelve DTOs o modelos de dominio; Service no parsea stdClass",
-                            "Refactorizar AuthRepository/AuthService como referencia si aplica"
-                        ],
-                        "developer": {
-                            "goal": "Contrato reutilizable para respuestas de SP en todos los módulos",
-                            "files": [
-                                "app/DTOs/",
-                                "app/Repositories/AuthRepository.php",
-                                "app/Services/AuthService.php"
-                            ],
-                            "examples": [
-                                "DTO readonly con fromSpRow(object $row): self",
-                                "Repository::validateCredentials(): MobileUserDto o similar"
-                            ],
-                            "references": [".cursor/rules/project.mdc"],
-                            "avoid": ["Arrays asociativos sin tipo en Services", "stdClass en capa Service"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-004-2",
-                    "title": "Catálogo de stored procedures (contratos DBA)",
-                    "status": "completed",
-                    "layer": "data",
-                    "validation": "test -f database/sp-catalog.md",
-                    "guidance": {
-                        "agent": [
-                            "Documentar columnas y parámetros por SP; marcar blocked si DBA no ha entregado el SP",
-                            "No inventar nombres de SP de producto/cobro sin acuerdo"
-                        ],
-                        "developer": {
-                            "goal": "Fuente de verdad de SPs legacy antes del primer módulo funcional (WS-005+)",
-                            "files": [
-                                "database/sp-catalog.md",
-                                "database/README.md"
-                            ],
-                            "examples": [
-                                "Tabla: SP | propósito | parámetros | columnas salida | estado (ready/blocked)",
-                                "usp_movil_valida_usu_pwd_2 documentado como ready"
-                            ],
-                            "references": ["README.md", ".cursor/rules/project.mdc"],
-                            "avoid": ["Migraciones Laravel", "DDL desde la app"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-004-3",
-                    "title": "Aislar ejemplo WS-002 (User) de producción",
-                    "status": "completed",
-                    "layer": "data",
-                    "validation": "php artisan test && ! grep -r 'UserService' routes/ app/Http/Controllers/ 2>/dev/null || true",
-                    "guidance": {
-                        "agent": [
-                            "User/UserRepository/UserService/StoreUserRequest solo para tests de patrón",
-                            "No referenciar en rutas ni controllers de producción"
-                        ],
-                        "developer": {
-                            "goal": "Evitar que nuevos módulos copien el ejemplo Eloquent users",
-                            "files": [
-                                "app/Models/User.php",
-                                "app/Repositories/UserRepository.php",
-                                "app/Services/UserService.php",
-                                "tests/Feature/RepositoryTest.php",
-                                "tests/Feature/RequestTest.php"
-                            ],
-                            "examples": [
-                                "Mover a tests/Support o namespace Tests\\Support\\Pattern",
-                                "O mantener ruta con comentario @internal pattern-only"
-                            ],
-                            "references": [".cursor/rules/project.mdc"],
-                            "avoid": ["Usar tabla users en auth o POS", "unique:users,email en requests de producción"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-004-4",
-                    "title": "Scaffolding frontend (carpetas, tipos API, flash)",
-                    "status": "completed",
-                    "layer": "presentation",
-                    "validation": "pnpm run type-check && pnpm run build",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Estructura prevista en reglas lista antes del primer módulo Vue",
-                            "files": [
-                                "resources/js/Components/",
-                                "resources/js/Composables/",
-                                "resources/js/Stores/",
-                                "resources/js/types/api.ts",
-                                "resources/js/Composables/useFlash.ts",
-                                "resources/js/Components/AppFlash.vue"
-                            ],
-                            "examples": [
-                                "api.ts: ApiError, PaginatedResponse<T> genéricos",
-                                "useFlash lee page.props.flash de Inertia",
-                                "AppFlash montado en AppLayout"
-                            ],
-                            "references": [".cursor/rules/code-style.mdc"],
-                            "avoid": ["Usar any", "CSS fuera de Tailwind", "Librerías toast nuevas sin aprobación"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-004-5",
-                    "title": "Shell autenticado y navegación por módulos",
-                    "status": "completed",
-                    "layer": "presentation",
-                    "validation": "pnpm run build && php artisan route:list --path=dashboard",
-                    "guidance": {
-                        "developer": {
-                            "goal": "Layout unificado con menú por rol y rutas placeholder de módulos",
-                            "files": [
-                                "resources/js/Layouts/AppLayout.vue",
-                                "resources/js/Pages/Dashboard.vue",
-                                "routes/web.php"
-                            ],
-                            "examples": [
-                                "Enlaces: Dashboard, Punto de venta (/pos placeholder), Admin (/admin) solo administrator",
-                                "Nav oculto para guest; mobile-first 375px"
-                            ],
-                            "references": [".cursor/rules/project.mdc", ".cursor/rules/code-style.mdc"],
-                            "avoid": ["Lógica de negocio de venta en el layout; solo navegación y placeholders"]
-                        }
-                    }
-                },
-                {
-                    "id": "WS-004-6",
-                    "title": "Calidad automatizada (PHPStan, locale, CI)",
-                    "status": "completed",
-                    "layer": "infra",
-                    "validation": "composer analyse && vendor/bin/pint --test && pnpm run type-check",
-                    "guidance": {
-                        "agent": [
-                            "Crear phpstan.neon (nivel acordado con el equipo)",
-                            "Workflow GitHub Actions en push/PR a main y dev"
-                        ],
-                        "developer": {
-                            "goal": "Pipeline repetible antes de escalar equipo o servidores",
-                            "files": [
-                                "phpstan.neon",
-                                "config/app.php",
-                                ".env.example",
-                                ".github/workflows/ci.yml"
-                            ],
-                            "examples": [
-                                "APP_LOCALE=es y fallback es",
-                                "CI: composer test, pint --test, analyse, pnpm type-check, pnpm run build"
-                            ],
-                            "references": [".cursor/rules/workflow.mdc"],
-                            "avoid": ["Saltarse analyse en CI", "npm en lugar de pnpm"]
-                        }
-                    }
-                }
+            "subtasks": [],
+            "dependencies": ["WS-011"]
+        },
+        {
+            "id": "WS-013",
+            "title": "Práctica interactiva con voz",
+            "category": "feature",
+            "architecture": "layered-repository-service-inertia",
+            "status": "pending",
+            "priority": "high",
+            "description": "UI de sesión de práctica con QuestionCard, VoiceInput (Web Speech API) y envío de transcripción al backend para evaluación.",
+            "acceptanceCriteria": [
+                "Composable useSpeechRecognition con estados tipados",
+                "Fallback a textarea si voz no disponible",
+                "Respuesta evaluada y guardada en answers"
             ],
-            "dependencies": ["WS-003"]
+            "guidance": {
+                "developer": {
+                    "goal": "Experiencia interactiva mobile-first",
+                    "files": ["resources/js/Composables/useSpeechRecognition.ts", "resources/js/Pages/Practice/"]
+                }
+            },
+            "subtasks": [],
+            "dependencies": ["WS-012"]
+        },
+        {
+            "id": "WS-014",
+            "title": "Curva de aprendizaje y progreso",
+            "category": "feature",
+            "architecture": "layered-repository-service-inertia",
+            "status": "pending",
+            "priority": "medium",
+            "description": "ProgressService calcula métricas (precisión, nivel estimado, racha) y dashboard con visualización de evolución.",
+            "acceptanceCriteria": [
+                "progress_snapshots se generan tras cada sesión",
+                "Dashboard muestra curva de aprendizaje del developer",
+                "Nivel sugerido para próximas preguntas"
+            ],
+            "guidance": {
+                "developer": {
+                    "goal": "Validar curva de aprendizaje por developer",
+                    "files": ["app/Services/ProgressService.php", "resources/js/Pages/Dashboard.vue"]
+                }
+            },
+            "subtasks": [],
+            "dependencies": ["WS-013"]
         }
     ]
 }

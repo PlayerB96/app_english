@@ -1,5 +1,5 @@
 ---
-description: Reglas de estilo de código para Laravel 13 + Vue 3
+description: Reglas de estilo de código para Laravel 13 + Vue 3 (app_english)
 globs: ["**/*"]
 ---
 
@@ -14,37 +14,40 @@ globs: ["**/*"]
 - Un método público por acción; preferir Resource Controllers (index, store, show, update, destroy)
 
 ### Services
-- Una clase por dominio de negocio (ej: `AuthService`, `ProductService`)
+- Una clase por dominio de negocio (ej: `AuthService`, `PracticeService`, `AiQuestionService`, `ProgressService`)
 - Inyección de dependencias por constructor
 - Retornar DTOs o modelos de dominio, nunca arrays genéricos sin tipar
 - Manejar excepciones de negocio con excepciones custom o `ValidationException` con mensajes en español
+- Integración IA solo en Services; encapsular prompts y parsing de respuestas
 
 ### Repositories
-- **Stored procedures**: encapsular `EXEC` en Repositories; declarar en interfaz
-- Eloquent solo para tablas legacy existentes y solo dentro de Repositories
+- **Eloquent** encapsulado en Repositories; declarar métodos en interfaz
 - Interfaz + implementación para facilitar testing (mock en Feature tests)
-- Los Services consumen Repositories, nunca acceden a `DB::` directamente
+- Los Services consumen Repositories, nunca acceden a `DB::` o `Model::query()` directamente
+- Consultas complejas: scopes en Model o métodos privados en Repository, no en Service
 
 ### Autenticación
-- `MobileUser` implementa `Authenticatable`; no extiende Eloquent
-- No usar `Auth::login()` con modelos Eloquent contra BD legacy para el login POS
-- Roles SP permitidos en login: `MobileRoleCode::CajaRapida` (`00005`) y `MobileRoleCode::Administrador` (`00001`); priorizar `00005`
-- Mapeo a `UserRole`: `00005` → `Cashier`, `00001` → `Administrator`
+- Modelo `User` Eloquent con `Authenticatable`
+- Login por **email** + password (hash bcrypt/argon)
+- Roles vía `UserRole` enum; middleware `CheckRole` para rutas admin
+- Eliminar dependencia de `MobileUser` / stored procedures al refactorizar auth
 
-### Modelos Eloquent (legacy / tests)
+### Modelos Eloquent
 - Definir `$fillable` explícitamente, nunca usar `$guarded = []`
-- Definir casts para tipos complejos
+- Definir casts para tipos complejos (enums, datetime, json)
 - Relaciones tipadas con return types
+- Tablas en snake_case plural (ej: `practice_sessions`, `learning_tracks`)
 
 ### Validación
 - Form Requests para toda validación
 - Mensajes de error en español configurados en `lang/es/validation.php`
 - Rules personalizadas en `app/Rules/`
-- Login: `username` max 20, `password` max 15 (límites del SP)
 
 ### Migraciones
-
-No se usan migraciones Laravel. El esquema legacy lo mantiene el DBA; la app accede vía stored procedures en Repositories.
+- **Sí se usan migraciones Laravel** contra PostgreSQL
+- Una migración por cambio lógico de esquema; nombres descriptivos
+- Índices en FK y columnas de búsqueda frecuente (`user_id`, `track_id`, `created_at`)
+- Seeders para tracks iniciales y datos de demo
 
 ## Vue 3 / TypeScript
 
@@ -53,16 +56,23 @@ No se usan migraciones Laravel. El esquema legacy lo mantiene el DBA; la app acc
 - Props tipadas con `defineProps<{}>()` (no runtime props)
 - Emits tipados con `defineEmits<{}>()`
 - Un componente por archivo, nombrado en PascalCase
+- Componentes de dominio: `QuestionCard`, `VoiceInput`, `LearningCurveChart`, `PracticeTimer`
 
 ### Iconos
-- Usar **@lucide/vue** (`import { Eye, EyeOff } from "@lucide/vue"`)
+- Usar **@lucide/vue** (`import { Mic, MicOff, BookOpen } from "@lucide/vue"`)
 - No añadir Font Awesome, Heroicons u otras librerías sin justificación
 
 ### Estado
-- Pinia para estado global (carrito, sesión de venta)
+- Pinia para estado global (sesión de práctica activa, progreso en curso)
 - Datos de usuario autenticado: `usePage().props.auth.user` (tipado en `resources/js/types/auth.ts`)
 - `ref()` / `reactive()` para estado local del componente
-- Composables para lógica reutilizable entre componentes
+- Composables para lógica reutilizable: `useSpeechRecognition`, `useFlash`, `usePracticeSession`
+
+### Voz (frontend)
+- Composable `useSpeechRecognition` con tipado estricto
+- Manejar permisos de micrófono y estados: `idle`, `listening`, `error`, `unsupported`
+- Fallback a textarea cuando Web Speech API no esté disponible
+- No enviar audio al backend salvo requisito explícito; enviar transcripción como string
 
 ### Estilos
 - Usar Tailwind CSS de forma exclusiva para estilos de UI
@@ -75,6 +85,6 @@ No se usan migraciones Laravel. El esquema legacy lo mantiene el DBA; la app acc
 ### TypeScript
 - Strict mode habilitado
 - No usar `any` — usar `unknown` si el tipo no se conoce
-- Interfaces para contratos de datos (props, API responses)
+- Interfaces para contratos de datos (props, API responses, preguntas, progreso)
 - Types para uniones y tipos derivados
-- Archivos de tipos en `resources/js/types/`
+- Archivos de tipos en `resources/js/types/` (`auth.ts`, `practice.ts`, `api.ts`)

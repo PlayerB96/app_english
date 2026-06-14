@@ -1,5 +1,5 @@
 ---
-description: Flujo de trabajo del agente para ln1_caja_rapida
+description: Flujo de trabajo del agente para app_english
 globs: ["**/*"]
 ---
 
@@ -11,9 +11,9 @@ Fuente de verdad: `issues/ws/activities.json` (local, en `.gitignore`; no commit
 
 | Campo | Uso |
 |-------|-----|
-| `project` | Nombre del repo/proyecto |
+| `project` | Nombre del repo/proyecto (`app_english`) |
 | `layer` | Capa del harness (`web-service`) |
-| `architecture` | Patrón global (ej. `layered-repository-service-inertia`) |
+| `architecture` | Patrón global (`layered-repository-service-inertia`) |
 | `packageManager` | Gestores permitidos (`composer + pnpm`) |
 | `activities` | Lista de actividades ordenadas por dependencias |
 
@@ -38,10 +38,10 @@ Campos relevantes: `id`, `title`, `status`, `layer`, `validation`, `guidance`.
 
 | `layer` (subtarea) | Ámbito típico en este proyecto |
 |--------------------|--------------------------------|
-| `infra` | Composer, pnpm, Docker, bootstrap, providers, rate limiting |
+| `infra` | Composer, pnpm, Docker, PostgreSQL, bootstrap, providers, rate limiting |
 | `http` | Controllers, Form Requests, Resources, Middleware |
-| `data` | Models, Repositories (SPs), DTOs |
-| `presentation` | Páginas y componentes Vue/Inertia |
+| `data` | Models, Repositories, DTOs, **migraciones** |
+| `presentation` | Páginas y componentes Vue/Inertia, composables de voz |
 
 ### Guidance en subtareas
 
@@ -84,15 +84,14 @@ Prioridad al implementar: **`guidance.agent`** → **`guidance.developer`** (arc
 - Si una actividad está `blocked`, reportar al usuario y pasar a la siguiente disponible.
 - No iniciar una actividad si sus `dependencies` no están `completed`.
 - No instalar dependencias (Composer/pnpm) sin aprobación del usuario cuando `guidance` lo indique en `avoid`.
-- **No crear migraciones** ni tablas Laravel en la BD legacy; usar SPs en Repositories.
-- **No** cambiar `SESSION_DRIVER`/`CACHE_STORE` a `database` en `.env` de producción legacy.
+- **Usar migraciones Laravel** para esquema PostgreSQL; no DDL ad hoc fuera de migraciones.
+- API keys de IA solo en `.env`; nunca en frontend ni en commits.
 - Si aparece un bug durante el desarrollo, registrar una actividad nueva con `category`: `bugfix` en `activities.json` (misma estructura).
 - Archivos nuevos según `project.mdc` y las rutas en `guidance.developer.files`.
-- Probar en contexto **mobile-first** (viewport 375px).
-- Escáner de barras: considerar API de cámara del dispositivo.
-- Sincronización con Jira: skill `activities-to-jira` con el ID de actividad (ej. `WS-003`); no modificar `activities.json` durante esa sync salvo petición explícita.
+- Probar en contexto **mobile-first** (viewport 375px); la práctica con voz debe funcionar en móvil cuando el navegador lo permita.
+- Sincronización con Jira: skill `activities-to-jira` con el ID de actividad (ej. `WS-010`); no modificar `activities.json` durante esa sync salvo petición explícita.
 
 ## Convención de IDs
 
 - **WS-XXX**: actividad web-service (fullstack)
-- **WS-XXX-N**: subtarea (ej. `WS-003-1`)
+- **WS-XXX-N**: subtarea (ej. `WS-010-1`)

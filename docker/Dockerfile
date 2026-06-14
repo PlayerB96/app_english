@@ -3,22 +3,14 @@ FROM php:8.4.21-cli
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    gnupg2 \
-    apt-transport-https \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    unixodbc-dev \
+    libpq-dev \
     zip \
     unzip \
     nodejs \
-    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
-    && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
-    && pecl install sqlsrv pdo_sqlsrv \
-    && docker-php-ext-enable sqlsrv pdo_sqlsrv \
-    && docker-php-ext-install mbstring exif pcntl bcmath gd \
+    && docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath gd \
     && corepack enable \
     && corepack prepare pnpm@10 --activate \
     && apt-get clean \

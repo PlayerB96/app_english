@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "ln1/caja-rapida",
+    "name": "app/english",
     "type": "project",
-    "description": "Sistema web móvil de caja rápida para puntos de venta en tiendas.",
-    "keywords": ["pos", "caja-rapida", "barcode", "laravel", "vue"],
+    "description": "Plataforma de aprendizaje de inglés para programadores con IA y voz.",
+    "keywords": ["english", "learning", "developers", "ai", "laravel", "vue"],
     "license": "proprietary",
     "require": {
         "php": "^8.4",

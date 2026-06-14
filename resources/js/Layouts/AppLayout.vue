@@ -2,7 +2,7 @@
 import AppFlash from "@/Components/AppFlash.vue";
 import { useAppStore } from "@/Stores/useAppStore";
 import { Link, usePage } from "@inertiajs/vue3";
-import { LayoutDashboard, Menu, ScanBarcode, Settings, X } from "@lucide/vue";
+import { BookOpen, LayoutDashboard, Menu, Mic, Settings, X } from "@lucide/vue";
 import { computed } from "vue";
 import type { PageProps } from "@/types/auth";
 
@@ -21,7 +21,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Punto de venta", href: "/pos", icon: ScanBarcode },
+    { label: "Práctica", href: "/practice", icon: Mic },
+    { label: "Tracks", href: "/tracks", icon: BookOpen },
     { label: "Administración", href: "/admin", icon: Settings, adminOnly: true },
 ];
 
@@ -62,7 +63,7 @@ function closeNav(): void {
                         href="/dashboard"
                         class="truncate text-lg font-bold text-gray-900"
                     >
-                        Caja Rápida
+                        Dev English
                     </Link>
                 </div>
 

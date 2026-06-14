@@ -1,6 +1,6 @@
-# ln1_caja_rapida
+# app_english
 
-Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite escanear códigos de barras, consultar precios y procesar cobros rápidamente.
+Plataforma de aprendizaje de **inglés para programadores**. Genera preguntas en inglés con IA, sesiones interactivas con voz y seguimiento de la curva de aprendizaje de cada desarrollador.
 
 ## Stack tecnológico
 
@@ -13,77 +13,90 @@ Sistema web móvil de caja rápida para puntos de venta en tiendas. Permite esca
 | Estilos | Tailwind CSS | 3.4.x |
 | Iconos | @lucide/vue | 1.x |
 | Bundler | Vite | 6.x |
-| Base de datos | Microsoft SQL Server (legacy) | driver `sqlsrv` |
+| Base de datos | **PostgreSQL** | driver `pgsql` |
+| IA | API externa (OpenAI u otro) | vía Services backend |
+| Voz | Web Speech API | frontend (composable) |
 | Gestor JS | pnpm | 9+ |
 | Lenguaje PHP | PHP | **8.4.21** |
 | Lenguaje JS | TypeScript | 5.7+ |
 
 ## Requisitos previos
 
-- PHP 8.4.21
+- PHP 8.4.21 con extensión `pdo_pgsql`
 - Composer 2.x
 - Node.js 20+ y **pnpm**
-- Microsoft SQL Server accesible en red (BD legacy del cliente)
-- Extensión PHP `pdo_sqlsrv` y ODBC Driver 18 for SQL Server
-- Docker (opcional: dev con SQL Server embebido; prod solo app)
+- PostgreSQL 14+ (local o Docker)
+- Clave de API de proveedor IA (ej. OpenAI) para generación de preguntas
 
-## Arquitectura de datos
+## Arquitectura
 
-- El esquema vive en **SQL Server existente** (ej. `DBINFOSAP_ALM`, `DBINFOSAP_B16`). El DBA lo mantiene.
-- **No hay migraciones Laravel** ni tablas `users`, `sessions`, `cache` en esa BD.
-- Toda la lógica de negocio accede vía **stored procedures** en `app/Repositories/`.
-- Detalle: [`database/README.md`](database/README.md).
+Patrón **layered-repository-service-inertia**:
 
-## Autenticación
+```
+HTTP → Form Request → Controller → Service → Repository → PostgreSQL
+                                              ↘ AiQuestionService → API IA
+```
 
-| Aspecto | Detalle |
-|---------|---------|
-| SP | `dbo.usp_movil_valida_usu_pwd_2` |
-| Campos login | **Usuario** (`username`, max 20) y **Contraseña** (max 15) |
-| Roles SP permitidos | `00005` (caja rápida → `cashier`), `00001` (administrador → `administrator`); prioriza `00005` |
-| Sesión | `MobileUser` + `MobileUserProvider` (archivos en `storage/framework/sessions`) |
-| Frontend | [`resources/js/Pages/Auth/Login.vue`](resources/js/Pages/Auth/Login.vue) con toggle ver/ocultar clave (Lucide) |
+- Esquema gestionado con **migraciones Laravel** en PostgreSQL.
+- Lógica de negocio e integración IA en `app/Services/`.
+- Acceso a datos encapsulado en `app/Repositories/` (Eloquent).
+- Voz y captura de respuestas en el frontend; el backend evalúa texto transcrito.
 
-Flujo: `LoginRequest` → `AuthController` → `AuthService` → `AuthRepository` (EXEC SP) → sesión.
+Detalle de capas: [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc).
+
+## Dominio funcional
+
+| Módulo | Descripción |
+|--------|-------------|
+| **Auth** | Registro/login de developers |
+| **Learning tracks** | Rutas temáticas (vocabulario dev, entrevistas, docs) |
+| **Practice** | Sesiones con preguntas generadas por IA |
+| **Voice** | Respuestas habladas transcritas a texto |
+| **Progress** | Curva de aprendizaje, nivel, rachas, precisión |
 
 ## Configuración `.env`
 
-### Conexión SQL Server (legacy)
+### PostgreSQL
 
 ```env
-DB_CONNECTION=sqlsrv
-DB_HOST=172.16.0.131      # distinto por servidor en producción
-DB_PORT=1433
-DB_DATABASE=DBINFOSAP_B16
-DB_USERNAME=infosap_user
-DB_PASSWORD=
-DB_ENCRYPT=yes
-DB_TRUST_SERVER_CERTIFICATE=true
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=app_english
+DB_USERNAME=app
+DB_PASSWORD=secret
 ```
 
-### Infra Laravel (sin tablas en SQL Server)
+### Laravel (sesión, caché, colas)
 
 ```env
-SESSION_DRIVER=file
-CACHE_STORE=file
-QUEUE_CONNECTION=sync
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
 ```
 
-> **Importante:** no uses `SESSION_DRIVER=database` ni `CACHE_STORE=database` contra la BD legacy; esas tablas no existen.
+### Integración IA
 
-Copia desde [`.env.example`](.env.example). Plantillas por servidor: [`deploy/env/`](deploy/env/).
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Copia desde [`.env.example`](.env.example).
 
 ## Levantar el entorno de desarrollo
 
-### Opción 1: Local contra SQL Server del cliente (recomendado)
+### Opción 1: Local
 
 ```bash
 composer install
 pnpm install
 
 cp .env.example .env
-# Editar DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# Editar DB_* y OPENAI_API_KEY
 php artisan key:generate
+php artisan migrate
 php artisan config:clear
 
 # Terminales separadas:
@@ -91,89 +104,44 @@ php artisan serve
 pnpm run dev
 ```
 
-Asegúrate de que existan y sean escribibles:
-
-- `storage/framework/sessions`
-- `storage/framework/cache/data`
-- `bootstrap/cache`
-
-### Opción 2: Docker (dev con SQL Server embebido)
+### Opción 2: Docker (PostgreSQL embebido)
 
 ```bash
 cp .env.example .env
 docker compose up -d
-# Solo para pruebas locales; en producción se usa BD externa legacy
+docker compose exec app php artisan migrate
 ```
-
-> El compose de **desarrollo** incluye SQL Server + Redis. **Producción** usa [`docker-compose.prod.yml`](docker-compose.prod.yml) (solo app, BD externa).
 
 ## Estructura del proyecto
 
 ```
 app/
-├── Auth/                   → MobileUserProvider (auth por sesión)
 ├── Http/Controllers/       → Controladores
 ├── Http/Requests/          → Form Requests
 ├── Http/Resources/         → API Resources
-├── Http/Middleware/        → Inertia, roles, etc.
-├── Models/                 → MobileUser (sesión), User (legacy/tests)
-├── Services/               → AuthService, dominio
-├── Repositories/           → AuthRepository (SPs), otros repos
-└── Enums/                  → MobileRoleCode, UserRole
+├── Models/                 → User, Question, PracticeSession, etc.
+├── Services/               → PracticeService, AiQuestionService, ProgressService
+├── Repositories/           → Acceso Eloquent
+└── DTOs/                   → Transferencia de datos
 
-deploy/
-├── deploy.sh               → git pull + rebuild (no modifica .env)
-└── env/                    → Plantillas por servidor
+database/
+├── migrations/             → Esquema PostgreSQL
+└── seeders/                → Tracks y datos demo
 
 resources/js/
-├── Pages/Auth/Login.vue    → Login (usuario + contraseña)
-├── Layouts/AppLayout.vue
-├── types/auth.ts           → Tipos del usuario en sesión
-└── ...
+├── Pages/                  → Dashboard, Practice, LearningCurve
+├── Components/             → QuestionCard, VoiceInput
+├── Composables/            → useSpeechRecognition
+└── types/                  → TypeScript
 ```
-
-## Configuración: `.env` y `phpunit.xml`
-
-| Archivo | Objetivo |
-|---------|----------|
-| **`.env`** | Conexión SQL Server legacy, sesión en archivo, caché local |
-| **`phpunit.xml`** | Entorno de tests (`APP_ENV=testing`, sesión `array`, etc.) |
-
-En tests, los repositorios se mockean; no se requiere BD real para auth. Ver `tests/Feature/AuthTest.php`.
-
-## Despliegue multi-servidor (producción)
-
-10 servidores con Docker; mismo código, **`DB_HOST` y `APP_URL` distintos** por nodo.
-
-| Variable | Ámbito |
-|----------|--------|
-| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Compartido |
-| `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION` | Compartido (`file` / `file` / `sync`) |
-| **`DB_HOST`**, **`APP_URL`** | **Por servidor** |
-
-### Bootstrap (primera vez)
-
-```bash
-git clone <repo> /opt/caja_rapida
-cd /opt/caja_rapida
-cp .env.example .env
-# Editar DB_HOST, APP_URL, DB_PASSWORD; php artisan key:generate en el host
-
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec app php artisan config:cache
-```
-
-### Actualizar código (igual en los 10 servidores)
-
-```bash
-./deploy/deploy.sh
-```
-
-Hace: `git pull` → rebuild Docker → `config:cache`. **No sobrescribe `.env`.**
 
 ## Comandos útiles
 
 ```bash
+# Base de datos
+php artisan migrate
+php artisan db:seed
+
 # Tests
 php artisan test
 pnpm run type-check
@@ -190,3 +158,7 @@ php artisan config:clear
 ## Tracking de actividades
 
 Las actividades de desarrollo se gestionan en `issues/ws/activities.json`. Consultar `issues/README.md` para el protocolo de trabajo.
+
+## Estado del pivot
+
+El repositorio conserva la **estructura de capas** del scaffold original (Laravel + Inertia + Vue) pero el dominio cambió de POS/caja rápida a aprendizaje de inglés. El código legacy (`MobileUser`, SP SQL Server, rutas `/pos`) se refactorizará progresivamente según el backlog en `activities.json`.

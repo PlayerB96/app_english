@@ -1,15 +1,37 @@
 # Base de datos
 
-El esquema de negocio vive en SQL Server existente (`DBINFOSAP_ALM`). **No se usan migraciones Laravel** para crear tablas.
+Esquema de aplicación en **PostgreSQL**, gestionado con **migraciones Laravel**.
 
-- Acceso a datos legacy: **stored procedures** encapsulados en `app/Repositories/`.
-- Catálogo de SPs y contratos DBA: [`sp-catalog.md`](sp-catalog.md).
-- El DBA mantiene el esquema; la app no ejecuta DDL.
+## Convenciones
 
-Los factories en `database/factories/` se usan solo en tests (objetos en memoria, sin persistir tablas).
+- Tablas en snake_case plural (`users`, `practice_sessions`, `questions`, `learning_tracks`).
+- FK explícitas con `constrained()` y `cascadeOnDelete()` donde aplique.
+- Índices en columnas de filtro frecuente (`user_id`, `track_id`, `created_at`).
+- Enums de dominio preferiblemente como columnas `string` con cast a PHP Enum en el Model.
 
-Sesión, caché y colas **no** usan tablas Laravel en SQL Server. En `.env` deben ser:
+## Tablas previstas (roadmap)
 
-- `SESSION_DRIVER=file`
-- `CACHE_STORE=file`
-- `QUEUE_CONNECTION=sync`
+| Tabla | Propósito |
+|-------|-----------|
+| `users` | Developers autenticados |
+| `learning_tracks` | Rutas de aprendizaje temáticas |
+| `practice_sessions` | Sesiones de práctica por usuario |
+| `questions` | Preguntas (generadas IA o seed) |
+| `answers` | Respuestas del usuario (texto/voz transcrita) |
+| `progress_snapshots` | Puntos de la curva de aprendizaje |
+
+## Seeders
+
+- `LearningTrackSeeder`: tracks iniciales (dev vocabulary, interviews, documentation).
+- `DatabaseSeeder`: orquesta seeders en entorno local/demo.
+
+## Tests
+
+Los factories en `database/factories/` alimentan tests Feature/Unit sin depender de datos reales de producción.
+
+## Comandos
+
+```bash
+php artisan migrate
+php artisan migrate:fresh --seed   # solo local
+```
