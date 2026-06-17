@@ -18,6 +18,16 @@ class MiddlewareTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin');
 
         $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->component('Admin/Dashboard'));
+    }
+
+    public function test_administrator_can_access_admin_subroutes(): void
+    {
+        $admin = User::factory()->administrator()->create();
+
+        $this->actingAs($admin)->get('/admin/users')->assertOk();
+        $this->actingAs($admin)->get('/admin/tracks')->assertOk();
+        $this->actingAs($admin)->get('/admin/reports')->assertOk();
     }
 
     public function test_learner_cannot_access_admin_panel(): void
@@ -27,6 +37,32 @@ class MiddlewareTest extends TestCase
         $response = $this->actingAs($learner)->get('/admin');
 
         $response->assertForbidden();
+    }
+
+    public function test_administrator_cannot_access_learner_dashboard(): void
+    {
+        $admin = User::factory()->administrator()->create();
+
+        $response = $this->actingAs($admin)->get('/dashboard');
+
+        $response->assertForbidden();
+    }
+
+    public function test_learner_can_access_mock_learner_pages(): void
+    {
+        $learner = User::factory()->learner()->create();
+
+        $this->actingAs($learner)->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Dashboard')->has('progress'));
+
+        $this->actingAs($learner)->get('/practice')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Practice/Index')->has('tiers')->has('challenges'));
+
+        $this->actingAs($learner)->get('/tracks')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Tracks/Index')->has('tiers')->has('challenges'));
     }
 
     public function test_guest_cannot_access_admin_panel(): void

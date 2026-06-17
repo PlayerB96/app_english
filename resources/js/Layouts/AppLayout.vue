@@ -2,7 +2,15 @@
 import AppFlash from "@/Components/AppFlash.vue";
 import { useAppStore } from "@/Stores/useAppStore";
 import { Link, usePage } from "@inertiajs/vue3";
-import { BookOpen, LayoutDashboard, Menu, Mic, Settings, X } from "@lucide/vue";
+import {
+    BarChart3,
+    BookOpen,
+    LayoutDashboard,
+    Menu,
+    Mic,
+    Users,
+    X,
+} from "@lucide/vue";
 import { computed } from "vue";
 import type { PageProps } from "@/types/auth";
 
@@ -16,21 +24,34 @@ interface NavItem {
     label: string;
     href: string;
     icon: typeof LayoutDashboard;
-    adminOnly?: boolean;
 }
 
-const navItems: NavItem[] = [
+const learnerNav: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Práctica", href: "/practice", icon: Mic },
     { label: "Tracks", href: "/tracks", icon: BookOpen },
-    { label: "Administración", href: "/admin", icon: Settings, adminOnly: true },
+];
+
+const adminNav: NavItem[] = [
+    { label: "Panel", href: "/admin", icon: LayoutDashboard },
+    { label: "Usuarios", href: "/admin/users", icon: Users },
+    { label: "Tracks", href: "/admin/tracks", icon: BookOpen },
+    { label: "Reportes", href: "/admin/reports", icon: BarChart3 },
 ];
 
 const visibleNavItems = computed(() =>
-    navItems.filter((item) => !item.adminOnly || isAdmin.value)
+    isAdmin.value ? adminNav : learnerNav,
+);
+
+const homeHref = computed(() =>
+    isAdmin.value ? "/admin" : "/dashboard",
 );
 
 function isActive(href: string): boolean {
+    if (href === "/admin") {
+        return page.url === "/admin";
+    }
+
     return page.url === href || page.url.startsWith(`${href}/`);
 }
 
@@ -60,7 +81,7 @@ function closeNav(): void {
                     </button>
 
                     <Link
-                        href="/dashboard"
+                        :href="homeHref"
                         class="truncate text-lg font-bold text-gray-900"
                     >
                         Dev English

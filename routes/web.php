@@ -3,10 +3,10 @@
 /**
  * Rutas protegidas (requieren sesión autenticada):
  * - POST /logout
- * - GET  /dashboard
+ * - GET  /dashboard, /practice, /tracks (learner)
  *
  * Rutas con rol administrador (auth + middleware role:administrator):
- * - GET  /admin
+ * - GET  /admin, /admin/users, /admin/tracks, /admin/reports
  *
  * Rate limiting:
  * - POST /login → throttle:login (5 intentos/minuto por IP)
@@ -14,6 +14,7 @@
  */
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MockPageController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -34,19 +35,24 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
-    Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
 
-    Route::get('/practice', function () {
-        return Inertia::render('Practice/Placeholder');
-    })->name('practice.index');
+    Route::middleware('role:learner')->group(function () {
+        Route::get('/dashboard', [MockPageController::class, 'learnerDashboard'])
+            ->name('dashboard');
+        Route::get('/practice', [MockPageController::class, 'practice'])
+            ->name('practice.index');
+        Route::get('/tracks', [MockPageController::class, 'tracks'])
+            ->name('tracks.index');
+    });
 
-    Route::get('/tracks', function () {
-        return Inertia::render('Tracks/Placeholder');
-    })->name('tracks.index');
-
-    Route::middleware('role:administrator')->group(function () {
-        Route::get('/admin', function () {
-            return Inertia::render('Admin/Placeholder');
-        })->name('admin.panel');
+    Route::middleware('role:administrator')->prefix('admin')->group(function () {
+        Route::get('/', [MockPageController::class, 'adminDashboard'])
+            ->name('admin.dashboard');
+        Route::get('/users', [MockPageController::class, 'adminUsers'])
+            ->name('admin.users');
+        Route::get('/tracks', [MockPageController::class, 'adminTracks'])
+            ->name('admin.tracks');
+        Route::get('/reports', [MockPageController::class, 'adminReports'])
+            ->name('admin.reports');
     });
 });

@@ -20,7 +20,10 @@
             "guidance": {
                 "developer": {
                     "goal": "Base lista para features del nuevo dominio",
-                    "references": ["README.md", ".cursor/rules/project.mdc"]
+                    "references": [
+                        "README.md",
+                        ".cursor/rules/project.mdc"
+                    ]
                 }
             },
             "subtasks": [],
@@ -42,7 +45,10 @@
             "guidance": {
                 "developer": {
                     "goal": "Persistencia del dominio de aprendizaje",
-                    "references": ["database/README.md", ".cursor/rules/code-style.mdc"]
+                    "references": [
+                        "database/README.md",
+                        ".cursor/rules/code-style.mdc"
+                    ]
                 }
             },
             "subtasks": [
@@ -53,16 +59,26 @@
                     "layer": "data",
                     "validation": "php artisan migrate --pretend",
                     "guidance": {
-                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
                         "developer": {
                             "goal": "Crear migraciones users, learning_tracks, practice_sessions, questions, answers, progress_snapshots",
-                            "files": ["database/migrations/"],
-                            "avoid": ["DDL fuera de migraciones", "sqlsrv", "stored procedures SQL Server"]
+                            "files": [
+                                "database/migrations/"
+                            ],
+                            "avoid": [
+                                "DDL fuera de migraciones",
+                                "sqlsrv",
+                                "stored procedures SQL Server"
+                            ]
                         }
                     }
                 }
             ],
-            "dependencies": ["WS-001"]
+            "dependencies": [
+                "WS-001"
+            ]
         },
         {
             "id": "WS-011",
@@ -81,14 +97,129 @@
             "guidance": {
                 "developer": {
                     "goal": "Auth alineada al dominio app_english",
-                    "references": [".cursor/rules/project.mdc", "README.md"]
+                    "references": [
+                        ".cursor/rules/project.mdc",
+                        "README.md"
+                    ]
                 }
             },
             "subtasks": [],
-            "dependencies": ["WS-010"]
+            "dependencies": [
+                "WS-010"
+            ]
         },
         {
             "id": "WS-012",
+            "title": "Prototipo UI con datos mock",
+            "category": "diseño",
+            "architecture": "layered-repository-service-inertia",
+            "status": "completed",
+            "priority": "high",
+            "description": "Mapear la aplicación completa con fixtures TypeScript y páginas Vue navegables antes de IA, voz y backend de progreso/admin. Learner y administrator con flujos distintos; sin persistencia real.",
+            "acceptanceCriteria": [
+                "Fixtures en resources/js/mocks/ alineados al esquema BD (tracks, sessions, questions, progress, admin KPIs)",
+                "Learner: /dashboard, /practice, /tracks con datos mock vía Inertia",
+                "Administrator: /admin, /admin/users, /admin/tracks, /admin/reports con KPIs y tablas mock",
+                "AppLayout con navegación distinta por rol (learner vs administrator)",
+                "Flujo de práctica simulado: pregunta → respuesta → feedback (sin Web Speech ni API IA)",
+                "Componentes reutilizables: QuestionCard, ProgressChart, KpiCard, TrackList",
+                "Tipos TS en resources/js/types/ listos para conectar DTOs reales en WS-013+"
+            ],
+            "guidance": {
+                "agent": [
+                    "Implementar antes de WS-013: define forma de datos y UX que luego consumen IA, voz, ProgressService y AdminService",
+                    "Controllers o closures en web.php pasan mocks; no crear Services/Repositories de dominio aún"
+                ],
+                "developer": {
+                    "goal": "Validar mapa visual y flujos de la app con datos ficticios antes de features backend",
+                    "references": [
+                        "README.md",
+                        "database/pg-catalog.md",
+                        ".cursor/rules/project.mdc"
+                    ],
+                    "context": [
+                        "Reemplaza Placeholder.vue en Practice, Tracks y Admin",
+                        "Dashboard learner: curva, racha, nivel estimado, última sesión",
+                        "Practice: selección de track, tarjeta de pregunta, input texto (voz llega en WS-014)",
+                        "Admin: tarjetas KPI, tabla learners, listado/ formulario tracks, reporte por track"
+                    ]
+                }
+            },
+            "subtasks": [
+                {
+                    "id": "WS-012-1",
+                    "title": "Fixtures, tipos TS y rutas mock",
+                    "status": "completed",
+                    "layer": "presentation",
+                    "validation": "pnpm run type-check",
+                    "guidance": {
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Mocks y tipos compartidos; rutas Inertia con props desde fixtures",
+                            "files": [
+                                "resources/js/mocks/",
+                                "resources/js/types/practice.ts",
+                                "resources/js/types/progress.ts",
+                                "resources/js/types/admin.ts",
+                                "routes/web.php"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-012-2",
+                    "title": "UI learner: dashboard, practice y tracks",
+                    "status": "completed",
+                    "layer": "presentation",
+                    "validation": "pnpm run build",
+                    "guidance": {
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Páginas learner navegables con datos mock",
+                            "files": [
+                                "resources/js/Pages/Dashboard.vue",
+                                "resources/js/Pages/Practice/Index.vue",
+                                "resources/js/Pages/Tracks/Index.vue",
+                                "resources/js/Components/QuestionCard.vue",
+                                "resources/js/Components/ProgressChart.vue"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "id": "WS-012-3",
+                    "title": "UI administrator: panel, usuarios, tracks y reportes",
+                    "status": "completed",
+                    "layer": "presentation",
+                    "validation": "pnpm run build",
+                    "guidance": {
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
+                        "developer": {
+                            "goal": "Experiencia admin separada del learner con mocks",
+                            "files": [
+                                "resources/js/Pages/Admin/Dashboard.vue",
+                                "resources/js/Pages/Admin/Users/Index.vue",
+                                "resources/js/Pages/Admin/Tracks/Index.vue",
+                                "resources/js/Pages/Admin/Reports/Index.vue",
+                                "resources/js/Layouts/AppLayout.vue",
+                                "resources/js/Components/KpiCard.vue"
+                            ]
+                        }
+                    }
+                }
+            ],
+            "dependencies": [
+                "WS-011"
+            ]
+        },
+        {
+            "id": "WS-013",
             "title": "Integración IA: generación de preguntas",
             "category": "feature",
             "architecture": "layered-repository-service-inertia",
@@ -103,20 +234,25 @@
             "guidance": {
                 "developer": {
                     "goal": "Motor de contenido pedagógico dinámico",
-                    "files": ["app/Services/AiQuestionService.php", "config/ai.php"]
+                    "files": [
+                        "app/Services/AiQuestionService.php",
+                        "config/ai.php"
+                    ]
                 }
             },
             "subtasks": [],
-            "dependencies": ["WS-011"]
+            "dependencies": [
+                "WS-012"
+            ]
         },
         {
-            "id": "WS-013",
+            "id": "WS-014",
             "title": "Práctica interactiva con voz",
             "category": "feature",
             "architecture": "layered-repository-service-inertia",
             "status": "pending",
             "priority": "high",
-            "description": "UI de sesión de práctica con QuestionCard, VoiceInput (Web Speech API) y envío de transcripción al backend para evaluación.",
+            "description": "Conectar UI de práctica (WS-012) con AiQuestionService: VoiceInput (Web Speech API), evaluación real y persistencia en answers.",
             "acceptanceCriteria": [
                 "Composable useSpeechRecognition con estados tipados",
                 "Fallback a textarea si voz no disponible",
@@ -125,20 +261,26 @@
             "guidance": {
                 "developer": {
                     "goal": "Experiencia interactiva mobile-first",
-                    "files": ["resources/js/Composables/useSpeechRecognition.ts", "resources/js/Pages/Practice/"]
+                    "files": [
+                        "resources/js/Composables/useSpeechRecognition.ts",
+                        "resources/js/Pages/Practice/"
+                    ]
                 }
             },
             "subtasks": [],
-            "dependencies": ["WS-012"]
+            "dependencies": [
+                "WS-013",
+                "WS-012"
+            ]
         },
         {
-            "id": "WS-014",
+            "id": "WS-015",
             "title": "Curva de aprendizaje y progreso",
             "category": "feature",
             "architecture": "layered-repository-service-inertia",
             "status": "pending",
             "priority": "medium",
-            "description": "ProgressService calcula métricas (precisión, nivel estimado, racha) y dashboard con visualización de evolución.",
+            "description": "Sustituir mocks del dashboard learner (WS-012) por ProgressService: métricas reales, progress_snapshots y curva de aprendizaje.",
             "acceptanceCriteria": [
                 "progress_snapshots se generan tras cada sesión",
                 "Dashboard muestra curva de aprendizaje del developer",
@@ -147,20 +289,25 @@
             "guidance": {
                 "developer": {
                     "goal": "Validar curva de aprendizaje por developer",
-                    "files": ["app/Services/ProgressService.php", "resources/js/Pages/Dashboard.vue"]
+                    "files": [
+                        "app/Services/ProgressService.php",
+                        "resources/js/Pages/Dashboard.vue"
+                    ]
                 }
             },
             "subtasks": [],
-            "dependencies": ["WS-013"]
+            "dependencies": [
+                "WS-014"
+            ]
         },
         {
-            "id": "WS-015",
+            "id": "WS-016",
             "title": "Panel de administración",
             "category": "feature",
             "architecture": "layered-repository-service-inertia",
             "status": "pending",
             "priority": "high",
-            "description": "Experiencia administrator separada del learner: KPIs globales (usuarios, prácticas completadas, tracks activos, precisión promedio), reportes por learner/track, gestión de learning_tracks y listado de usuarios learners.",
+            "description": "Sustituir mocks del panel admin (WS-012) por datos reales: KPIs globales, reportes por learner/track, CRUD learning_tracks y gestión de usuarios learners.",
             "acceptanceCriteria": [
                 "Menú distinto: administrator ve Dashboard admin + Administración; learner no accede a /admin/*",
                 "KPIs en /admin: total learners, prácticas completadas/activas, tracks activos, precisión promedio",
@@ -171,11 +318,15 @@
             ],
             "guidance": {
                 "agent": [
-                    "Implementar después de WS-014 para que KPIs y reportes tengan datos reales de practice_sessions, answers y progress_snapshots"
+                    "Implementar después de WS-015 para que KPIs y reportes tengan datos reales de practice_sessions, answers y progress_snapshots"
                 ],
                 "developer": {
                     "goal": "Panel admin para supervisar la plataforma y configurar contenido para learners",
-                    "references": [".cursor/rules/project.mdc", "database/pg-catalog.md", "README.md"],
+                    "references": [
+                        ".cursor/rules/project.mdc",
+                        "database/pg-catalog.md",
+                        "README.md"
+                    ],
                     "context": [
                         "Learner: dashboard personal, /practice, /tracks",
                         "Administrator: /admin (KPIs), /admin/users, /admin/tracks, /admin/reports",
@@ -185,13 +336,15 @@
             },
             "subtasks": [
                 {
-                    "id": "WS-015-1",
+                    "id": "WS-016-1",
                     "title": "Backend: AdminRepository, AdminService y KPIs",
                     "status": "pending",
                     "layer": "data",
                     "validation": "php artisan test --filter=Admin",
                     "guidance": {
-                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
                         "developer": {
                             "goal": "Consultas agregadas: users, practice_sessions, learning_tracks, answers, progress_snapshots",
                             "files": [
@@ -200,18 +353,22 @@
                                 "app/Services/AdminService.php",
                                 "app/DTOs/Admin/AdminDashboardStatsDto.php"
                             ],
-                            "avoid": ["Queries en Controller o Service sin Repository"]
+                            "avoid": [
+                                "Queries en Controller o Service sin Repository"
+                            ]
                         }
                     }
                 },
                 {
-                    "id": "WS-015-2",
+                    "id": "WS-016-2",
                     "title": "HTTP: AdminController, rutas /admin/* y middleware",
                     "status": "pending",
                     "layer": "http",
                     "validation": "php artisan route:list --path=admin",
                     "guidance": {
-                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
                         "developer": {
                             "goal": "Rutas protegidas role:administrator; redirect admin tras login a /admin",
                             "files": [
@@ -222,13 +379,15 @@
                     }
                 },
                 {
-                    "id": "WS-015-3",
+                    "id": "WS-016-3",
                     "title": "Presentation: dashboard admin con KPIs y reportes",
                     "status": "pending",
                     "layer": "presentation",
                     "validation": "pnpm run type-check",
                     "guidance": {
-                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
                         "developer": {
                             "goal": "Páginas Vue: Admin/Dashboard, Admin/Users/Index, Admin/Tracks/Index, Admin/Reports",
                             "files": [
@@ -246,13 +405,15 @@
                     }
                 },
                 {
-                    "id": "WS-015-4",
+                    "id": "WS-016-4",
                     "title": "CRUD learning_tracks y LearningTrackSeeder",
                     "status": "pending",
                     "layer": "data",
                     "validation": "php artisan db:seed --class=LearningTrackSeeder",
                     "guidance": {
-                        "agent": ["Ejecutar validation antes de marcar completed"],
+                        "agent": [
+                            "Ejecutar validation antes de marcar completed"
+                        ],
                         "developer": {
                             "goal": "Admin puede crear/editar tracks; seeder con dev vocabulary, interviews, documentation",
                             "files": [
@@ -264,7 +425,9 @@
                     }
                 }
             ],
-            "dependencies": ["WS-014"]
+            "dependencies": [
+                "WS-015"
+            ]
         }
     ]
 }

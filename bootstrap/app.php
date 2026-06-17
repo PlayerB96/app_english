@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -27,7 +28,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));
-        $middleware->redirectUsersTo(fn () => route('dashboard'));
+        $middleware->redirectUsersTo(function () {
+            $user = auth()->user();
+
+            if ($user?->role === UserRole::Administrator) {
+                return route('admin.dashboard');
+            }
+
+            return route('dashboard');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (ValidationException $exception, $request): ?JsonResponse {

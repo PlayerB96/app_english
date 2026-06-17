@@ -51,9 +51,9 @@ Detalle de capas: [`.cursor/rules/project.mdc`](.cursor/rules/project.mdc).
 |--------|-------------|--------|
 | **Auth** | Login email/password, roles `learner` / `administrator` | Implementado |
 | **Learning tracks** | Rutas temáticas (vocabulario dev, entrevistas, docs) | Tablas listas, UI pendiente |
-| **Practice** | Sesiones con preguntas generadas por IA | Pendiente (WS-012+) |
-| **Voice** | Respuestas habladas transcritas a texto | Pendiente (WS-013) |
-| **Progress** | Curva de aprendizaje, nivel, rachas | Pendiente (WS-014) |
+| **Practice** | Sesiones con preguntas generadas por IA | Pendiente (WS-013+) |
+| **Voice** | Respuestas habladas transcritas a texto | Pendiente (WS-014) |
+| **Progress** | Curva de aprendizaje, nivel, rachas | Pendiente (WS-015) |
 
 ## Autenticación
 
@@ -190,14 +190,16 @@ Backlog en `issues/ws/activities.json`. Protocolo: [`issues/README.md`](issues/R
 |----|--------|-------------|
 | WS-010 | Completado | Migraciones PostgreSQL + tablas core |
 | WS-011 | Completado | Auth Eloquent + UserSeeder + login dev |
-| WS-012 | Pendiente | Integración IA (preguntas) |
-| WS-013 | Pendiente | Práctica con voz |
-| WS-014 | Pendiente | Curva de aprendizaje (learner) |
-| WS-015 | Pendiente | Panel de administración (KPIs, reportes, tracks, usuarios) |
+| WS-012 | Completado | Prototipo UI con datos mock (learner + admin) |
+| WS-013 | Pendiente | Integración IA (preguntas) |
+| WS-014 | Pendiente | Práctica con voz |
+| WS-015 | Pendiente | Curva de aprendizaje (learner) |
+| WS-016 | Pendiente | Panel de administración (KPIs, reportes, tracks, usuarios) |
 
 ## Estado actual
 
 - **PostgreSQL** con migraciones aplicadas (local o remoto).
 - **Auth** por email con `AuthRepository` (Eloquent); roles `learner` / `administrator`.
 - **Sin código legacy** del POS (SQL Server / MobileUser eliminado).
-- **Pendiente:** modelos Eloquent de dominio, `LearningTrackSeeder`, IA, voz y dashboard de progreso.
+- **WS-012 completado:** prototipo UI con mocks (learner + admin).
+- **Pendiente:** WS-013 IA, WS-014 voz, WS-015 progreso, WS-016 admin real.

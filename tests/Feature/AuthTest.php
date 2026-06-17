@@ -78,7 +78,7 @@ class AuthTest extends TestCase
             'password' => 'password',
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('admin.dashboard'));
 
         $user = auth()->user();
         $this->assertInstanceOf(User::class, $user);

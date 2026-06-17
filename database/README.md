@@ -74,5 +74,5 @@ php artisan migrate:fresh --seed   # solo local
 ## Seeders
 
 - `UserSeeder`: usuarios demo (`learner@app-english.test`, `admin@app-english.test`)
-- `LearningTrackSeeder`: tracks iniciales (pendiente WS-012+)
+- `LearningTrackSeeder`: tracks iniciales (pendiente WS-016)
 - `DatabaseSeeder`: orquesta seeders en entorno local/demo
