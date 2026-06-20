@@ -8,6 +8,7 @@ export const learnerDashboard: LearnerDashboardData = {
         streak_days: 5,
         last_practice_at: "2026-06-13T18:30:00+00:00",
         suggested_level: "intermediate",
+        suggested_track_name: "Práctica · Speaking",
     },
     chart_points: [
         { date: "2026-06-08", accuracy: 62 },

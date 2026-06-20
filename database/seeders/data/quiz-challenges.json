@@ -1,0 +1,17 @@
+[
+    {"tier": "basico", "phase": 1, "prompt": "Apple", "options": ["Manzana", "Pera", "Uva"], "correct_index": 0},
+    {"tier": "basico", "phase": 2, "prompt": "Book", "options": ["Libro", "Mesa", "Silla"], "correct_index": 0},
+    {"tier": "basico", "phase": 3, "prompt": "I need water", "options": ["Necesito agua", "Tengo sed de café", "Quiero pan"], "correct_index": 0},
+    {"tier": "basico", "phase": 4, "prompt": "Good night", "options": ["Buenas noches", "Buenos días", "Hasta luego"], "correct_index": 0},
+    {"tier": "basico", "phase": 5, "prompt": "My name is Alex", "options": ["Me llamo Alex", "Vivo en Alex", "Soy de noche"], "correct_index": 0},
+    {"tier": "intermedio", "phase": 1, "prompt": "Merge conflict", "options": ["Conflicto de fusión", "Error de red", "Código duplicado"], "correct_index": 0},
+    {"tier": "intermedio", "phase": 2, "prompt": "The server is down", "options": ["El servidor está caído", "El servidor es rápido", "El servidor es nuevo"], "correct_index": 0},
+    {"tier": "intermedio", "phase": 3, "prompt": "We rolled back the release", "options": ["Revertimos el lanzamiento", "Aceleramos el lanzamiento", "Cancelamos el equipo"], "correct_index": 0},
+    {"tier": "intermedio", "phase": 4, "prompt": "Write unit tests", "options": ["Escribir pruebas unitarias", "Borrar la base de datos", "Cerrar el proyecto"], "correct_index": 0},
+    {"tier": "intermedio", "phase": 5, "prompt": "The build passed successfully", "options": ["La compilación pasó exitosamente", "La compilación falló ayer", "La compilación es lenta"], "correct_index": 0},
+    {"tier": "avanzado", "phase": 1, "prompt": "Idempotent operation", "options": ["Operación idempotente", "Operación aleatoria", "Operación bloqueada"], "correct_index": 0},
+    {"tier": "avanzado", "phase": 2, "prompt": "Eventual consistency", "options": ["Consistencia eventual", "Consistencia inmediata", "Consistencia imposible"], "correct_index": 0},
+    {"tier": "avanzado", "phase": 3, "prompt": "Horizontal scaling", "options": ["Escalado horizontal", "Escalado vertical único", "Reducción de nodos"], "correct_index": 0},
+    {"tier": "avanzado", "phase": 4, "prompt": "Circuit breaker pattern", "options": ["Patrón circuit breaker", "Patrón singleton", "Patrón decorador"], "correct_index": 0},
+    {"tier": "avanzado", "phase": 5, "prompt": "Zero downtime deployment", "options": ["Despliegue sin tiempo de inactividad", "Despliegue manual lento", "Despliegue sin pruebas"], "correct_index": 0}
+]

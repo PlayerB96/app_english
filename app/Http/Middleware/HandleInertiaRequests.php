@@ -27,10 +27,14 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role->value,
+                    ...($user->isLearner() ? ['tokens' => $user->tokens] : []),
                 ] : null,
             ],
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
+            ],
+            'game' => [
+                'skip_lockout_cost' => (int) config('tokens.skip_lockout_cost', 10),
             ],
         ];
     }

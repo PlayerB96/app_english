@@ -1,0 +1,17 @@
+[
+    {"tier": "basico", "phase": 1, "prompt": "Hello", "expected_translation": "Hola", "hint": "Saludo informal universal."},
+    {"tier": "basico", "phase": 2, "prompt": "Good morning", "expected_translation": "Buenos días", "hint": "Saludo matutino."},
+    {"tier": "basico", "phase": 3, "prompt": "How are you?", "expected_translation": "¿Cómo estás?", "hint": "Pregunta sobre el estado de alguien."},
+    {"tier": "basico", "phase": 4, "prompt": "Thank you very much", "expected_translation": "Muchas gracias", "hint": "Agradecimiento enfatizado."},
+    {"tier": "basico", "phase": 5, "prompt": "See you tomorrow", "expected_translation": "Nos vemos mañana", "hint": "Despedida para el día siguiente."},
+    {"tier": "intermedio", "phase": 1, "prompt": "I am working on a new feature", "expected_translation": "Estoy trabajando en una nueva funcionalidad", "hint": "Presente continuo en contexto laboral."},
+    {"tier": "intermedio", "phase": 2, "prompt": "Can you review my pull request?", "expected_translation": "¿Puedes revisar mi pull request?", "hint": "Petición educada en equipo de desarrollo."},
+    {"tier": "intermedio", "phase": 3, "prompt": "The deployment failed last night", "expected_translation": "El despliegue falló anoche", "hint": "Reportar un incidente."},
+    {"tier": "intermedio", "phase": 4, "prompt": "We need to fix this bug before the release", "expected_translation": "Necesitamos arreglar este bug antes del lanzamiento", "hint": "Urgencia técnica."},
+    {"tier": "intermedio", "phase": 5, "prompt": "Let me schedule a meeting with the team", "expected_translation": "Déjame agendar una reunión con el equipo", "hint": "Coordinación de equipo."},
+    {"tier": "avanzado", "phase": 1, "prompt": "The API latency increased after the last deployment", "expected_translation": "La latencia de la API aumentó después del último despliegue", "hint": "Diagnóstico de rendimiento."},
+    {"tier": "avanzado", "phase": 2, "prompt": "We should refactor this module to improve maintainability", "expected_translation": "Deberíamos refactorizar este módulo para mejorar la mantenibilidad", "hint": "Propuesta técnica formal."},
+    {"tier": "avanzado", "phase": 3, "prompt": "The root cause was a race condition in the cache layer", "expected_translation": "La causa raíz fue una condición de carrera en la capa de caché", "hint": "Postmortem técnico."},
+    {"tier": "avanzado", "phase": 4, "prompt": "I recommend splitting the monolith into smaller services", "expected_translation": "Recomiendo dividir el monolito en servicios más pequeños", "hint": "Arquitectura de software."},
+    {"tier": "avanzado", "phase": 5, "prompt": "Our observability stack helped us detect the issue early", "expected_translation": "Nuestro stack de observabilidad nos ayudó a detectar el problema a tiempo", "hint": "DevOps y monitoreo."}
+]

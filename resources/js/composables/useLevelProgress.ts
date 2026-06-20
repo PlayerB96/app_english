@@ -1,5 +1,11 @@
-import type { TierSlug } from "@/types/levels";
-import { computed, ref } from "vue";
+import type {
+    LevelProgressMode,
+    LevelProgressState,
+    LevelQuestionProgress,
+    TierSlug,
+} from "@/types/levels";
+import { router } from "@inertiajs/vue3";
+import { computed, ref, toValue, watch, type MaybeRef } from "vue";
 
 const TIER_ORDER: TierSlug[] = ["basico", "intermedio", "avanzado"];
 const PHASES_PER_TIER = 5;
@@ -18,58 +24,81 @@ export function tierPhaseFromId(id: number): { tier: TierSlug; phase: number } {
     return { tier: TIER_ORDER[tierIndex], phase };
 }
 
-function nextLevelId(currentId: number): number | null {
-    if (currentId >= TOTAL_LEVELS) {
-        return null;
-    }
+export function levelIdsForTier(tier: TierSlug): number[] {
+    const tierIndex = TIER_ORDER.indexOf(tier);
 
-    return currentId + 1;
+    return Array.from({ length: PHASES_PER_TIER }, (_, index) => (
+        tierIndex * PHASES_PER_TIER + index + 1
+    ));
 }
 
-export function useLevelProgress(storageKey: string) {
-    const unlocked = ref<number[]>([1]);
-    const completed = ref<number[]>([]);
-    const lockouts = ref<Record<string, string>>({});
+function cloneState(state: LevelProgressState): LevelProgressState {
+    return {
+        unlocked: [...state.unlocked],
+        completed: [...state.completed],
+        lockouts: { ...state.lockouts },
+        question_progress: { ...state.question_progress },
+        answered_questions: { ...state.answered_questions ?? {} },
+        session_questions: { ...state.session_questions ?? {} },
+    };
+}
 
-    function load(): void {
-        try {
-            const raw = localStorage.getItem(storageKey);
+function syncState(
+    unlocked: { value: number[] },
+    completed: { value: number[] },
+    lockouts: { value: Record<string, string> },
+    questionProgress: { value: Record<string, LevelQuestionProgress> },
+    answeredQuestions: { value: Record<string, number[]> },
+    sessionQuestions: { value: Record<string, number[]> },
+    source: LevelProgressState,
+): void {
+    unlocked.value = [...source.unlocked];
+    completed.value = [...source.completed];
+    lockouts.value = { ...source.lockouts };
+    questionProgress.value = { ...source.question_progress };
+    answeredQuestions.value = { ...source.answered_questions };
+    sessionQuestions.value = { ...source.session_questions ?? {} };
+}
 
-            if (!raw) {
-                return;
-            }
+export function useLevelProgress(
+    mode: LevelProgressMode,
+    initial: MaybeRef<LevelProgressState>,
+) {
+    const source = toValue(initial);
+    const unlocked = ref<number[]>([...source.unlocked]);
+    const completed = ref<number[]>([...source.completed]);
+    const lockouts = ref<Record<string, string>>({ ...source.lockouts });
+    const questionProgress = ref<Record<string, LevelQuestionProgress>>({
+        ...(source.question_progress ?? {}),
+    });
+    const answeredQuestions = ref<Record<string, number[]>>({
+        ...(source.answered_questions ?? {}),
+    });
+    const sessionQuestions = ref<Record<string, number[]>>({
+        ...(source.session_questions ?? {}),
+    });
+    const syncing = ref(false);
 
-            const data = JSON.parse(raw) as {
-                unlocked?: number[];
-                completed?: number[];
-                lockouts?: Record<string, string>;
-            };
+    watch(
+        () => toValue(initial),
+        (value) => syncState(unlocked, completed, lockouts, questionProgress, answeredQuestions, sessionQuestions, {
+            ...value,
+            question_progress: value.question_progress ?? {},
+            answered_questions: value.answered_questions ?? {},
+            session_questions: value.session_questions ?? {},
+        }),
+        { deep: true },
+    );
 
-            if (Array.isArray(data.unlocked) && data.unlocked.length > 0) {
-                unlocked.value = data.unlocked;
-            }
-
-            if (Array.isArray(data.completed)) {
-                completed.value = data.completed;
-            }
-
-            if (data.lockouts) {
-                lockouts.value = data.lockouts;
-            }
-        } catch {
-            // ignore corrupt storage
-        }
-    }
-
-    function save(): void {
-        localStorage.setItem(
-            storageKey,
-            JSON.stringify({
-                unlocked: unlocked.value,
-                completed: completed.value,
-                lockouts: lockouts.value,
-            }),
-        );
+    function currentSnapshot(): LevelProgressState {
+        return {
+            unlocked: [...unlocked.value],
+            completed: [...completed.value],
+            lockouts: { ...lockouts.value },
+            question_progress: { ...questionProgress.value },
+            answered_questions: { ...answeredQuestions.value },
+            session_questions: { ...sessionQuestions.value },
+        };
     }
 
     function isUnlocked(id: number): boolean {
@@ -78,6 +107,28 @@ export function useLevelProgress(storageKey: string) {
 
     function isCompleted(id: number): boolean {
         return completed.value.includes(id);
+    }
+
+    function isPending(id: number): boolean {
+        if (isCompleted(id)) {
+            return false;
+        }
+
+        const progress = questionProgress.value[String(id)];
+
+        return progress !== undefined && progress.correct > 0;
+    }
+
+    function questionProgressFor(id: number): LevelQuestionProgress | null {
+        return questionProgress.value[String(id)] ?? null;
+    }
+
+    function answeredQuestionsFor(id: number): number[] {
+        return answeredQuestions.value[String(id)] ?? [];
+    }
+
+    function sessionQuestionsFor(id: number): number[] {
+        return sessionQuestions.value[String(id)] ?? [];
     }
 
     function isLockedOut(id: number): boolean {
@@ -100,34 +151,345 @@ export function useLevelProgress(storageKey: string) {
         return until;
     }
 
-    function markPassed(id: number): void {
-        if (!completed.value.includes(id)) {
-            completed.value.push(id);
-        }
-
-        const next = nextLevelId(id);
-
-        if (next && !unlocked.value.includes(next)) {
-            unlocked.value.push(next);
-        }
-
-        delete lockouts.value[String(id)];
-        save();
+    function reloadProgress(): Promise<void> {
+        return new Promise((resolve) => {
+            router.reload({
+                only: ["progress"],
+                onFinish: () => resolve(),
+            });
+        });
     }
 
-    function markFailedWithLockout(id: number, hours = 24): string {
+    function startSession(levelId: number): Promise<void> {
+        syncing.value = true;
+
+        return new Promise((resolve, reject) => {
+            router.post(
+                `/level-progress/${mode}/start-session`,
+                { level_id: levelId },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: (page) => {
+                        const progress = page.props.progress as LevelProgressState | undefined;
+
+                        if (progress) {
+                            syncState(
+                                unlocked,
+                                completed,
+                                lockouts,
+                                questionProgress,
+                                answeredQuestions,
+                                sessionQuestions,
+                                {
+                                    ...progress,
+                                    question_progress: progress.question_progress ?? {},
+                                    answered_questions: progress.answered_questions ?? {},
+                                    session_questions: progress.session_questions ?? {},
+                                },
+                            );
+                        }
+
+                        resolve();
+                    },
+                    onError: () => reject(new Error("start_session_failed")),
+                    onFinish: () => {
+                        syncing.value = false;
+                    },
+                },
+            );
+        });
+    }
+
+    function markQuestionPassed(
+        levelId: number,
+        questionId: number,
+        options?: {
+            response_text?: string;
+            input_mode?: string;
+        },
+    ): Promise<{ completed: boolean; correct: number; total: number }> {
+        const previous = cloneState(currentSnapshot());
+        syncing.value = true;
+
+        const key = String(levelId);
+        const current = questionProgress.value[key] ?? {
+            correct: 0,
+            total: 3,
+        };
+        const nextCorrect = Math.min(current.correct + 1, current.total);
+
+        questionProgress.value[key] = {
+            correct: nextCorrect,
+            total: current.total,
+        };
+
+        if (!answeredQuestions.value[key]?.includes(questionId)) {
+            answeredQuestions.value[key] = [
+                ...(answeredQuestions.value[key] ?? []),
+                questionId,
+            ];
+        }
+
+        if (nextCorrect >= current.total) {
+            if (!completed.value.includes(levelId)) {
+                completed.value.push(levelId);
+            }
+
+            const next = levelId < TOTAL_LEVELS ? levelId + 1 : null;
+
+            if (next && !unlocked.value.includes(next)) {
+                unlocked.value.push(next);
+            }
+
+            delete questionProgress.value[key];
+            delete answeredQuestions.value[key];
+            delete sessionQuestions.value[key];
+        }
+
+        delete lockouts.value[key];
+
+        return new Promise((resolve) => {
+            router.post(
+                `/level-progress/${mode}/question-pass`,
+                {
+                    level_id: levelId,
+                    question_id: questionId,
+                    response_text: options?.response_text ?? "",
+                    input_mode: options?.input_mode ?? "text",
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onError: () =>
+                        syncState(
+                            unlocked,
+                            completed,
+                            lockouts,
+                            questionProgress,
+                            answeredQuestions,
+                            sessionQuestions,
+                            previous,
+                        ),
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(() => {
+                            const progress = questionProgressFor(levelId);
+
+                            resolve({
+                                completed: isCompleted(levelId),
+                                correct: progress?.correct ?? nextCorrect,
+                                total: progress?.total ?? current.total,
+                            });
+                        });
+                    },
+                },
+            );
+        });
+    }
+
+    function markFailedWithLockout(
+        id: number,
+        hours = 24,
+        options?: {
+            question_id?: number;
+            response_text?: string;
+            input_mode?: string;
+        },
+    ): Promise<string> {
+        const previous = cloneState(currentSnapshot());
+        syncing.value = true;
         const until = new Date(Date.now() + hours * 60 * 60 * 1000);
         lockouts.value[String(id)] = until.toISOString();
-        save();
 
-        return until.toISOString();
+        return new Promise((resolve) => {
+            router.post(
+                `/level-progress/${mode}/fail`,
+                {
+                    level_id: id,
+                    hours,
+                    question_id: options?.question_id,
+                    response_text: options?.response_text ?? "",
+                    input_mode: options?.input_mode ?? "text",
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onError: () =>
+                        syncState(
+                            unlocked,
+                            completed,
+                            lockouts,
+                            questionProgress,
+                            answeredQuestions,
+                            sessionQuestions,
+                            previous,
+                        ),
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(() => resolve(until.toISOString()));
+                    },
+                },
+            );
+        });
     }
 
-    function resetProgress(): void {
-        unlocked.value = [1];
-        completed.value = [];
-        lockouts.value = {};
-        save();
+    function recordPracticeAttempt(
+        levelId: number,
+        questionId: number,
+        isCorrect: boolean,
+        options?: {
+            response_text?: string;
+            input_mode?: string;
+            close_session?: boolean;
+        },
+    ): Promise<void> {
+        return new Promise((resolve) => {
+            router.post(
+                `/level-progress/${mode}/attempt`,
+                {
+                    level_id: levelId,
+                    question_id: questionId,
+                    is_correct: isCorrect,
+                    response_text: options?.response_text ?? "",
+                    input_mode: options?.input_mode ?? "text",
+                    close_session: options?.close_session ?? false,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => resolve(),
+                },
+            );
+        });
+    }
+
+    function skipLockout(id: number): Promise<void> {
+        const previous = cloneState(currentSnapshot());
+        syncing.value = true;
+        delete lockouts.value[String(id)];
+
+        return new Promise((resolve, reject) => {
+            router.post(
+                `/level-progress/${mode}/skip-lockout`,
+                { level_id: id },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onError: () => {
+                        syncState(
+                            unlocked,
+                            completed,
+                            lockouts,
+                            questionProgress,
+                            answeredQuestions,
+                            sessionQuestions,
+                            previous,
+                        );
+                        reject(new Error("skip_lockout_failed"));
+                    },
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(() => resolve()).catch(() => resolve());
+                    },
+                },
+            );
+        });
+    }
+
+    function hasProgress(id: number): boolean {
+        return (
+            isCompleted(id)
+            || isPending(id)
+            || isLockedOut(id)
+        );
+    }
+
+    function hasTierProgress(tier: TierSlug): boolean {
+        return levelIdsForTier(tier).some((id) => hasProgress(id));
+    }
+
+    function nextTier(tier: TierSlug): TierSlug | null {
+        const index = TIER_ORDER.indexOf(tier);
+
+        if (index < 0 || index >= TIER_ORDER.length - 1) {
+            return null;
+        }
+
+        return TIER_ORDER[index + 1];
+    }
+
+    function canResetTier(tier: TierSlug): boolean {
+        if (!hasTierProgress(tier)) {
+            return false;
+        }
+
+        const next = nextTier(tier);
+
+        if (!next) {
+            return true;
+        }
+
+        return !hasTierProgress(next);
+    }
+
+    function resetTier(tier: TierSlug): Promise<void> {
+        const previous = cloneState(currentSnapshot());
+        const ids = levelIdsForTier(tier);
+        syncing.value = true;
+
+        completed.value = completed.value.filter((id) => !ids.includes(id));
+
+        for (const id of ids) {
+            const key = String(id);
+            delete lockouts.value[key];
+            delete questionProgress.value[key];
+            delete answeredQuestions.value[key];
+            delete sessionQuestions.value[key];
+        }
+
+        return new Promise((resolve) => {
+            router.post(
+                `/level-progress/${mode}/reset-tier`,
+                { tier },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onError: () =>
+                        syncState(
+                            unlocked,
+                            completed,
+                            lockouts,
+                            questionProgress,
+                            answeredQuestions,
+                            sessionQuestions,
+                            previous,
+                        ),
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(resolve);
+                    },
+                },
+            );
+        });
+    }
+
+    function resetProgress(): Promise<void> {
+        syncing.value = true;
+
+        return new Promise((resolve) => {
+            router.post(
+                `/level-progress/${mode}/reset`,
+                {},
+                {
+                    preserveScroll: true,
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(resolve);
+                    },
+                },
+            );
+        });
     }
 
     const progressPercent = computed(() =>
@@ -136,19 +498,32 @@ export function useLevelProgress(storageKey: string) {
 
     const completedCount = computed(() => completed.value.length);
 
-    load();
-
     return {
         unlocked,
         completed,
         completedCount,
         lockouts,
+        questionProgress,
+        answeredQuestions,
+        sessionQuestions,
+        syncing,
         isUnlocked,
         isCompleted,
+        isPending,
+        questionProgressFor,
+        answeredQuestionsFor,
+        sessionQuestionsFor,
         isLockedOut,
         lockoutRemaining,
-        markPassed,
+        hasProgress,
+        hasTierProgress,
+        canResetTier,
+        markQuestionPassed,
+        startSession,
         markFailedWithLockout,
+        skipLockout,
+        recordPracticeAttempt,
+        resetTier,
         resetProgress,
         progressPercent,
         totalLevels: TOTAL_LEVELS,
@@ -163,6 +538,108 @@ export function normalizeText(value: string): string {
         .replace(/[^\w\s]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+}
+
+function levenshteinDistance(a: string, b: string): number {
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+    const matrix = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+    for (let row = 0; row < rows; row++) {
+        matrix[row][0] = row;
+    }
+
+    for (let col = 0; col < cols; col++) {
+        matrix[0][col] = col;
+    }
+
+    for (let row = 1; row < rows; row++) {
+        for (let col = 1; col < cols; col++) {
+            const cost = a[row - 1] === b[col - 1] ? 0 : 1;
+
+            matrix[row][col] = Math.min(
+                matrix[row - 1][col] + 1,
+                matrix[row][col - 1] + 1,
+                matrix[row - 1][col - 1] + cost,
+            );
+        }
+    }
+
+    return matrix[a.length][b.length];
+}
+
+export function scoreSpokenPhrase(spoken: string, expected: string): number {
+    const a = normalizeText(spoken);
+    const b = normalizeText(expected);
+
+    if (!a || !b) {
+        return 0;
+    }
+
+    if (a === b) {
+        return 100;
+    }
+
+    const aWords = a.split(" ").filter((word) => word.length > 0);
+    const bWords = b.split(" ").filter((word) => word.length > 0);
+
+    if (bWords.length === 1 && aWords.length === 1) {
+        const spokenWord = aWords[0];
+        const expectedWord = bWords[0];
+        const maxLength = Math.max(spokenWord.length, expectedWord.length);
+        const distance = levenshteinDistance(spokenWord, expectedWord);
+
+        return Math.max(0, Math.round((1 - distance / maxLength) * 100));
+    }
+
+    const significant = (words: string[]) => words.filter((word) => word.length >= 2);
+    const aSig = significant(aWords);
+    const bSig = significant(bWords);
+
+    if (bSig.length === 0) {
+        return a === b ? 100 : 0;
+    }
+
+    const matches = aSig.filter((word) => bSig.includes(word)).length;
+
+    return Math.round((matches / bSig.length) * 100);
+}
+
+export function compareSpokenPhrase(spoken: string, expected: string): boolean {
+    const a = normalizeText(spoken);
+    const b = normalizeText(expected);
+
+    if (!a || !b) {
+        return false;
+    }
+
+    if (a === b) {
+        return true;
+    }
+
+    const aWords = a.split(" ").filter((word) => word.length > 0);
+    const bWords = b.split(" ").filter((word) => word.length > 0);
+
+    if (bWords.length === 1 && aWords.length === 1) {
+        const spokenWord = aWords[0];
+        const expectedWord = bWords[0];
+
+        return spokenWord === expectedWord
+            || spokenWord.includes(expectedWord)
+            || expectedWord.includes(spokenWord);
+    }
+
+    const significant = (words: string[]) => words.filter((word) => word.length >= 2);
+    const aSig = significant(aWords);
+    const bSig = significant(bWords);
+
+    if (bSig.length === 0) {
+        return a === b;
+    }
+
+    const matches = aSig.filter((word) => bSig.includes(word)).length;
+
+    return matches >= Math.max(1, Math.ceil(bSig.length * 0.6));
 }
 
 export function compareTranslation(

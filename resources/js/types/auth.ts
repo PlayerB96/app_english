@@ -5,6 +5,7 @@ export interface AuthUser {
     name: string;
     email: string;
     role: UserRole;
+    tokens?: number;
 }
 
 export interface AuthProps {
@@ -16,10 +17,17 @@ export interface PageProps {
     flash: {
         status?: string;
     };
+    game: {
+        skip_lockout_cost: number;
+    };
 }
 
 export interface DevAccount {
     email: string;
     password: string;
     role: UserRole;
+}
+
+export function roleLabel(role: UserRole): string {
+    return role === "administrator" ? "Administrador" : "Aprendiz";
 }

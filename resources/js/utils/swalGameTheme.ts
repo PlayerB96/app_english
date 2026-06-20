@@ -1,0 +1,37 @@
+export function gameSwalTheme() {
+    const isDark = document.documentElement.classList.contains("dark");
+
+    return {
+        isDark,
+        background: isDark ? "#111827" : "#ffffff",
+        color: isDark ? "#f3f4f6" : "#111827",
+        muted: isDark ? "#9ca3af" : "#6b7280",
+        hudBg: isDark ? "#1e1b4b" : "#eef2ff",
+        hudBorder: isDark ? "#4338ca" : "#c7d2fe",
+        hudLabel: isDark ? "#a5b4fc" : "#6366f1",
+        timer: isDark ? "#e0e7ff" : "#3730a3",
+        badgeBg: isDark ? "#312e81" : "#ede9fe",
+        badgeText: isDark ? "#c4b5fd" : "#6d28d9",
+        confirmButtonColor: isDark ? "#6366f1" : "#4f46e5",
+        success: isDark ? "#86efac" : "#15803d",
+        powerUpBg: isDark ? "#292524" : "#fef3c7",
+        powerUpBorder: isDark ? "rgba(245, 158, 11, 0.35)" : "rgba(217, 119, 6, 0.35)",
+        powerUpText: isDark ? "#fcd34d" : "#b45309",
+        powerUpGlow: "none",
+        powerUpChipBg: isDark ? "rgba(0, 0, 0, 0.28)" : "rgba(255, 255, 255, 0.65)",
+        powerUpDisabledBg: isDark ? "#1f2937" : "#f3f4f6",
+        powerUpDisabledBorder: isDark ? "#374151" : "#d1d5db",
+        powerUpDisabledText: isDark ? "#6b7280" : "#9ca3af",
+        waitBg: isDark ? "#1e1b4b" : "#eef2ff",
+        waitBorder: isDark ? "#4338ca" : "#a5b4fc",
+        waitLabel: isDark ? "#a5b4fc" : "#4f46e5",
+        divider: isDark ? "#6b7280" : "#9ca3af",
+        footerBg: isDark ? "#0f172a" : "#f9fafb",
+        footerBorder: isDark ? "#1f2937" : "#e5e7eb",
+        successBg: isDark ? "rgba(22, 101, 52, 0.25)" : "#dcfce7",
+        successBorder: isDark ? "#22c55e" : "#86efac",
+        errorBg: isDark ? "rgba(127, 29, 29, 0.35)" : "#fef2f2",
+        errorBorder: isDark ? "#ef4444" : "#fecaca",
+        errorText: isDark ? "#fca5a5" : "#b91c1c",
+    };
+}

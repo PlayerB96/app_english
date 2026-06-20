@@ -12,6 +12,7 @@ export interface LearnerProgressSummary {
     streak_days: number;
     last_practice_at: string | null;
     suggested_level: Difficulty;
+    suggested_track_name: string;
 }
 
 export interface RecentSession {

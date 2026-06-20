@@ -10,26 +10,26 @@ defineProps<{
 }>();
 
 const toneClasses: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-700",
-    green: "bg-emerald-50 text-emerald-700",
-    amber: "bg-amber-50 text-amber-700",
-    violet: "bg-violet-50 text-violet-700",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
+    violet: "bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
 };
 </script>
 
 <template>
-    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div class="surface-card p-5">
         <div class="flex items-start justify-between gap-3">
             <div>
-                <p class="text-sm font-medium text-gray-500">
+                <p class="text-sm font-medium text-muted">
                     {{ title }}
                 </p>
-                <p class="mt-1 text-2xl font-bold text-gray-900">
+                <p class="mt-1 text-2xl font-bold text-heading">
                     {{ value }}
                 </p>
                 <p
                     v-if="subtitle"
-                    class="mt-1 text-xs text-gray-500"
+                    class="mt-1 text-xs text-muted"
                 >
                     {{ subtitle }}
                 </p>

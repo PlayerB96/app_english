@@ -37,8 +37,8 @@ const path = computed(() => {
 </script>
 
 <template>
-    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <p class="mb-4 text-sm font-medium text-gray-700">
+    <div class="surface-card p-5">
+        <p class="mb-4 text-sm font-medium text-body">
             {{ label ?? "Precisión reciente" }}
         </p>
 
@@ -54,14 +54,14 @@ const path = computed(() => {
                     :y1="chartHeight - 1"
                     :x2="chartWidth"
                     :y2="chartHeight - 1"
-                    stroke="#e5e7eb"
+                    class="stroke-gray-200 dark:stroke-gray-700"
                     stroke-width="1"
                 />
                 <path
                     v-if="path"
                     :d="path"
                     fill="none"
-                    stroke="#2563eb"
+                    class="stroke-blue-600 dark:stroke-blue-400"
                     stroke-width="3"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -69,7 +69,7 @@ const path = computed(() => {
             </svg>
         </div>
 
-        <div class="mt-3 flex justify-between text-xs text-gray-500">
+        <div class="mt-3 flex justify-between text-xs text-muted">
             <span
                 v-for="point in points"
                 :key="point.date"

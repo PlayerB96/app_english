@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminTrackRow } from "@/types/admin";
+import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
 
 const props = defineProps<{
     tracks: AdminTrackRow[];
 }>();
 
-const localTracks = ref<AdminTrackRow[]>([...props.tracks]);
 const editingId = ref<number | null>(null);
 const draftName = ref("");
 const draftDescription = ref("");
+const saving = ref(false);
 
 const difficultyLabel: Record<string, string> = {
     beginner: "Principiante",
@@ -24,40 +25,51 @@ function startEdit(track: AdminTrackRow): void {
     draftDescription.value = track.description ?? "";
 }
 
-function saveEdit(): void {
-    const track = localTracks.value.find((item) => item.id === editingId.value);
+function saveEdit(trackId: number): void {
+    saving.value = true;
 
-    if (!track) {
-        return;
-    }
-
-    track.name = draftName.value.trim() || track.name;
-    track.description = draftDescription.value.trim() || null;
-    editingId.value = null;
+    router.patch(
+        `/admin/tracks/${trackId}`,
+        {
+            name: draftName.value.trim(),
+            description: draftDescription.value.trim() || null,
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                saving.value = false;
+                editingId.value = null;
+            },
+        },
+    );
 }
 
 function toggleActive(track: AdminTrackRow): void {
-    track.is_active = !track.is_active;
+    router.patch(
+        `/admin/tracks/${track.id}`,
+        { is_active: !track.is_active },
+        { preserveScroll: true },
+    );
 }
 </script>
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class="space-y-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
+                <h1 class="text-2xl font-bold text-heading">
                     Gestión de tracks
                 </h1>
-                <p class="mt-1 text-gray-500">
-                    CRUD simulado en memoria (se reinicia al recargar).
+                <p class="mt-1 text-muted">
+                    Tracks de aprendizaje en PostgreSQL. Los cambios se guardan al instante.
                 </p>
             </div>
 
             <div class="space-y-4">
                 <article
-                    v-for="track in localTracks"
+                    v-for="track in tracks"
                     :key="track.id"
-                    class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                    class="surface-card p-5"
                 >
                     <div
                         v-if="editingId === track.id"
@@ -66,24 +78,26 @@ function toggleActive(track: AdminTrackRow): void {
                         <input
                             v-model="draftName"
                             type="text"
-                            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            class="input-field"
                         />
                         <textarea
                             v-model="draftDescription"
                             rows="3"
-                            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            class="input-field"
                         />
                         <div class="flex gap-2">
                             <button
                                 type="button"
-                                class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white"
-                                @click="saveEdit"
+                                class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                                :disabled="saving"
+                                @click="saveEdit(track.id)"
                             >
-                                Guardar (mock)
+                                Guardar
                             </button>
                             <button
                                 type="button"
-                                class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600"
+                                class="input-field text-body"
+                                :disabled="saving"
                                 @click="editingId = null"
                             >
                                 Cancelar
@@ -97,29 +111,29 @@ function toggleActive(track: AdminTrackRow): void {
                     >
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <h2 class="text-lg font-semibold text-gray-900">
+                                <h2 class="text-lg font-semibold text-heading">
                                     {{ track.name }}
                                 </h2>
-                                <span class="text-xs text-gray-400">
+                                <span class="text-xs text-muted">
                                     {{ track.slug }}
                                 </span>
                                 <span
-                                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-600"
+                                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-body dark:bg-gray-800"
                                 >
                                     {{ difficultyLabel[track.difficulty] ?? track.difficulty }}
                                 </span>
                             </div>
-                            <p class="text-sm text-gray-600">
+                            <p class="text-sm text-body">
                                 {{ track.description }}
                             </p>
-                            <p class="mt-2 text-xs text-gray-500">
-                                {{ track.session_count }} sesiones
+                            <p class="mt-2 text-xs text-muted">
+                                {{ track.session_count }} sesiones completadas
                             </p>
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <button
                                 type="button"
-                                class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-body hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
                                 @click="startEdit(track)"
                             >
                                 Editar
@@ -130,7 +144,7 @@ function toggleActive(track: AdminTrackRow): void {
                                 :class="
                                     track.is_active
                                         ? 'bg-emerald-50 text-emerald-700'
-                                        : 'bg-gray-100 text-gray-600'
+                                        : 'bg-gray-100 text-body dark:bg-gray-800'
                                 "
                                 @click="toggleActive(track)"
                             >

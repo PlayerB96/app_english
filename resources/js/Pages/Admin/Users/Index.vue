@@ -27,19 +27,19 @@ function formatDate(iso: string | null): string {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class="space-y-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
+                <h1 class="text-2xl font-bold text-heading">
                     Usuarios learners
                 </h1>
-                <p class="mt-1 text-gray-500">
-                    Listado simulado de developers en la plataforma.
+                <p class="mt-1 text-muted">
+                    Aprendices registrados con métricas reales de práctica.
                 </p>
             </div>
 
-            <div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div class="surface-table">
                 <table class="min-w-full text-left text-sm">
-                    <thead class="border-b border-gray-100 bg-gray-50 text-gray-600">
+                    <thead class="surface-table-head">
                         <tr>
                             <th class="px-4 py-3 font-medium">Nombre</th>
                             <th class="px-4 py-3 font-medium">Email</th>
@@ -49,27 +49,35 @@ function formatDate(iso: string | null): string {
                             <th class="px-4 py-3 font-medium">Precisión</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+                        <tr v-if="learners.length === 0">
+                            <td
+                                colspan="6"
+                                class="px-4 py-8 text-center text-sm text-muted"
+                            >
+                                Aún no hay aprendices registrados.
+                            </td>
+                        </tr>
                         <tr
                             v-for="learner in learners"
                             :key="learner.id"
                         >
-                            <td class="px-4 py-3 font-medium text-gray-900">
+                            <td class="px-4 py-3 font-medium text-heading">
                                 {{ learner.name }}
                             </td>
-                            <td class="px-4 py-3 text-gray-600">
+                            <td class="px-4 py-3 text-body">
                                 {{ learner.email }}
                             </td>
-                            <td class="px-4 py-3 text-gray-600">
+                            <td class="px-4 py-3 text-body">
                                 {{ learner.sessions_completed }}
                             </td>
-                            <td class="px-4 py-3 text-gray-600">
+                            <td class="px-4 py-3 text-body">
                                 {{ formatDate(learner.last_practice_at) }}
                             </td>
-                            <td class="px-4 py-3 capitalize text-gray-600">
+                            <td class="px-4 py-3 capitalize text-body">
                                 {{ levelLabel[learner.level_estimated] ?? learner.level_estimated }}
                             </td>
-                            <td class="px-4 py-3 text-gray-900">
+                            <td class="px-4 py-3 text-heading">
                                 {{ learner.accuracy_pct }}%
                             </td>
                         </tr>

@@ -1,16 +1,26 @@
 <script setup lang="ts">
+import DifficultyBadge from "@/Components/DifficultyBadge.vue";
 import LevelGrid from "@/Components/LevelGrid.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import {
-    compareTranslation,
+    compareSpokenPhrase,
     levelId,
+    scoreSpokenPhrase,
     useLevelProgress,
 } from "@/composables/useLevelProgress";
+import { useSpeechRecognition } from "@/composables/useSpeechRecognition";
+import { confirmResetTier } from "@/utils/confirmResetTier";
+import { formatLockoutRemaining } from "@/utils/formatLockout";
+import { showCompletedSpeakingLevel } from "@/utils/showCompletedLevel";
+import { showLockoutLevel } from "@/utils/showLockoutLevel";
+import { sublevelLabel } from "@/utils/learningLabels";
 import type {
-    SpeakingChallenge,
+    LevelProgressState,
     SpeakingFeedback,
+    SpeakingLevel,
     TierInfo,
 } from "@/types/levels";
+import type { SpeechCapturePhase } from "@/types/speech";
 import {
     ArrowLeft,
     CheckCircle2,
@@ -20,11 +30,14 @@ import {
     Square,
     XCircle,
 } from "@lucide/vue";
-import { computed, ref } from "vue";
+import { usePage } from "@inertiajs/vue3";
+import { computed, onBeforeUnmount, ref, toRef } from "vue";
+import type { PageProps } from "@/types/auth";
 
 const props = defineProps<{
     tiers: TierInfo[];
-    challenges: SpeakingChallenge[];
+    levels: SpeakingLevel[];
+    progress: LevelProgressState;
 }>();
 
 type Step = "map" | "speaking" | "feedback";
@@ -32,25 +45,133 @@ type Step = "map" | "speaking" | "feedback";
 const step = ref<Step>("map");
 const selectedLevelId = ref<number | null>(null);
 const isRecording = ref(false);
-const hasRecording = ref(false);
+const capturePhase = ref<SpeechCapturePhase>("idle");
 const transcription = ref("");
-const translation = ref("");
 const feedback = ref<SpeakingFeedback | null>(null);
 
-const progress = useLevelProgress("practice-level-progress");
+const speech = useSpeechRecognition();
 
-const selectedChallenge = computed(() =>
-    props.challenges.find((c) => c.id === selectedLevelId.value) ?? null,
+const page = usePage<{ auth: PageProps["auth"]; game: PageProps["game"] }>();
+
+const progress = useLevelProgress("speaking", toRef(props, "progress"));
+
+const hasRecording = computed(() => capturePhase.value === "ready");
+
+const speechSupported = computed(() => speech.isSupported());
+
+const recordingHint = computed(() => {
+    if (speech.status.value === "requesting-permission") {
+        return "Esperando permiso del micrófono…";
+    }
+
+    if (!speechSupported.value) {
+        return "Reconocimiento de voz no disponible. Escribe la frase en inglés abajo.";
+    }
+
+    if (isRecording.value) {
+        return "Escuchando… repite la frase en inglés y pulsa detener";
+    }
+
+    if (hasRecording.value) {
+        return "Listo. Revisa lo que se escuchó y valida.";
+    }
+
+    return "Pulsa el micrófono y di la frase en inglés";
+});
+
+const liveTranscript = computed(() => {
+    if (!isRecording.value) {
+        return "";
+    }
+
+    return `${speech.transcript.value} ${speech.interimTranscript.value}`.trim();
+});
+
+const selectedLevel = computed(
+    () => props.levels.find((level) => level.id === selectedLevelId.value) ?? null,
 );
 
+const currentQuestion = computed(() => {
+    const level = selectedLevel.value;
+
+    if (!level) {
+        return null;
+    }
+
+    const answered = progress.answeredQuestionsFor(level.id);
+
+    return (
+        level.questions.find(
+            (question) => !answered.includes(question.question_id),
+        ) ?? null
+    );
+});
+
+const questionPosition = computed(() => {
+    if (!selectedLevel.value || !currentQuestion.value) {
+        return null;
+    }
+
+    return {
+        current: currentQuestion.value.question_index,
+        total: selectedLevel.value.questions.length,
+    };
+});
+
 const tierLabel: Record<string, string> = {
-    basico: "Básico",
-    intermedio: "Intermedio",
-    avanzado: "Avanzado",
+    basico: "Módulo Básico",
+    intermedio: "Módulo Intermedio",
+    avanzado: "Módulo Avanzado",
 };
+
+function formatPendingLabel(id: number): string | null {
+    const item = progress.questionProgressFor(id);
+
+    if (!item) {
+        return null;
+    }
+
+    return `${item.correct}/${item.total}`;
+}
+
+function formatLockoutLabel(id: number): string | null {
+    return formatLockoutRemaining(progress.lockoutRemaining(id));
+}
+
+function viewLockedLevel(id: number): void {
+    const level = props.levels.find((item) => item.id === id);
+    const lockedUntil = progress.lockoutRemaining(id);
+
+    if (!level || !lockedUntil) {
+        return;
+    }
+
+    void showLockoutLevel({
+        moduleName: tierLabel[level.tier],
+        phase: level.phase,
+        lockedUntil,
+        tokens: page.props.auth.user?.tokens ?? 0,
+        skipCost: page.props.game.skip_lockout_cost,
+        onSkip: () => progress.skipLockout(id),
+    });
+}
+
+async function handleResetTier(tier: TierInfo): Promise<void> {
+    const confirmed = await confirmResetTier(tier.name);
+
+    if (!confirmed) {
+        return;
+    }
+
+    await progress.resetTier(tier.slug);
+}
 
 function selectLevel(id: number): void {
     if (!progress.isUnlocked(id) || progress.isLockedOut(id)) {
+        return;
+    }
+
+    if (progress.isCompleted(id)) {
         return;
     }
 
@@ -59,13 +180,28 @@ function selectLevel(id: number): void {
     step.value = "speaking";
 }
 
-function resetSpeakingState(): void {
-    isRecording.value = false;
-    hasRecording.value = false;
-    transcription.value = "";
-    translation.value = "";
-    feedback.value = null;
+function viewCompletedLevel(id: number): void {
+    const level = props.levels.find((item) => item.id === id);
+
+    if (!level) {
+        return;
+    }
+
+    void showCompletedSpeakingLevel(tierLabel[level.tier], level);
 }
+
+function resetSpeakingState(): void {
+    speech.abort();
+    isRecording.value = false;
+    capturePhase.value = "idle";
+    transcription.value = "";
+    feedback.value = null;
+    speech.resetTranscript();
+}
+
+onBeforeUnmount(() => {
+    speech.abort();
+});
 
 function backToMap(): void {
     step.value = "map";
@@ -73,98 +209,142 @@ function backToMap(): void {
     resetSpeakingState();
 }
 
-function toggleRecording(): void {
+async function toggleRecording(): Promise<void> {
     if (isRecording.value) {
         stopRecording();
 
         return;
     }
 
-    startRecording();
+    await startRecording();
 }
 
-function startRecording(): void {
-    const challenge = selectedChallenge.value;
-
-    if (!challenge) {
+async function startRecording(): Promise<void> {
+    if (!currentQuestion.value) {
         return;
     }
 
+    speech.errorMessage.value = null;
+    speech.resetTranscript();
     isRecording.value = true;
-    hasRecording.value = false;
-    transcription.value = "";
-    translation.value = "";
+
+    const started = await speech.start("en-US");
+
+    if (!started) {
+        isRecording.value = false;
+    }
 }
 
 function stopRecording(): void {
-    const challenge = selectedChallenge.value;
-
-    if (!challenge) {
-        return;
-    }
-
+    transcription.value = speech.stop();
     isRecording.value = false;
-    hasRecording.value = true;
-    transcription.value = challenge.prompt;
-    translation.value = challenge.expected_translation;
+    capturePhase.value = transcription.value.trim() ? "ready" : "idle";
 }
 
-function validateSpeaking(): void {
-    const challenge = selectedChallenge.value;
+async function validateSpeaking(): Promise<void> {
+    const question = currentQuestion.value;
+    const levelIdValue = selectedLevelId.value;
 
-    if (!challenge || !hasRecording.value) {
+    if (!question || !levelIdValue) {
         return;
     }
 
-    const isCorrect = compareTranslation(
-        translation.value,
-        challenge.expected_translation,
-    );
+    const canValidate = hasRecording.value
+        || (!speechSupported.value && transcription.value.trim() !== "");
+
+    if (!canValidate) {
+        return;
+    }
+
+    const isCorrect = compareSpokenPhrase(transcription.value, question.prompt);
+    const score = scoreSpokenPhrase(transcription.value, question.prompt);
+
+    let result = {
+        completed: false,
+        correct: progress.questionProgressFor(levelIdValue)?.correct ?? 0,
+        total: selectedLevel.value?.questions.length ?? 3,
+    };
+
+    if (isCorrect) {
+        result = await progress.markQuestionPassed(
+            levelIdValue,
+            question.question_id,
+            {
+                response_text: transcription.value,
+                input_mode: "voice",
+            },
+        );
+    } else {
+        await progress.recordPracticeAttempt(
+            levelIdValue,
+            question.question_id,
+            false,
+            {
+                response_text: transcription.value,
+                input_mode: "voice",
+            },
+        );
+    }
 
     feedback.value = {
         is_correct: isCorrect,
         transcription: transcription.value,
-        translation: translation.value,
-        expected_translation: challenge.expected_translation,
-        score: isCorrect ? 92 : 58,
+        expected_prompt: question.prompt,
+        expected_translation: question.expected_translation,
+        score,
         message: isCorrect
-            ? "¡Excelente! Tu pronunciación y traducción coinciden con lo esperado."
-            : "La traducción no coincide. Escucha el audio de referencia e inténtalo de nuevo.",
+            ? result.completed
+                ? "¡Subnivel aprobado! Respondiste correctamente las 3 preguntas."
+                : `¡Correcto! Llevas ${result.correct}/${result.total} preguntas del subnivel.`
+            : `No coincide con «${question.prompt}». Repite la frase en inglés e inténtalo de nuevo.`,
+        level_completed: result.completed,
+        questions_correct: result.correct,
+        questions_total: result.total,
     };
-
-    if (isCorrect && selectedLevelId.value) {
-        progress.markPassed(selectedLevelId.value);
-    }
 
     step.value = "feedback";
 }
 
 function continueAfterFeedback(): void {
-    backToMap();
+    if (feedback.value?.level_completed) {
+        backToMap();
+
+        return;
+    }
+
+    if (feedback.value?.is_correct) {
+        resetSpeakingState();
+        step.value = "speaking";
+
+        return;
+    }
+
+    resetSpeakingState();
+    step.value = "speaking";
 }
 </script>
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-3xl space-y-6">
+        <div class="space-y-6">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">
+                    <h1 class="text-2xl font-bold text-heading">
                         Práctica · Speaking
                     </h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Graba tu voz, valida el audio y compara la traducción.
-                        {{ progress.completedCount }}/{{ progress.totalLevels }} niveles completados.
+                    <p class="mt-1 text-sm text-muted">
+                        Cada subnivel tiene 3 preguntas (Fácil → Medio → Difícil). Debes acertar las 3 para aprobarlo.
+                        {{ progress.completedCount }}/{{ progress.totalLevels }} subniveles completados.
                     </p>
                 </div>
                 <button
                     v-if="step !== 'map'"
                     type="button"
-                    class="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                    class="inline-flex items-center gap-1 text-sm font-medium text-body hover:text-heading"
                     @click="backToMap"
                 >
                     <ArrowLeft class="h-4 w-4" />
-                    Mapa de niveles
+                    Mapa de módulos
                 </button>
             </div>
 
@@ -172,66 +352,74 @@ function continueAfterFeedback(): void {
                 v-if="step === 'map'"
                 class="space-y-4"
             >
-                <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    Desbloquea niveles al aprobar cada fase. Solo el Nivel 1 de Básico está disponible al inicio.
+                <div class="alert-info">
+                    Desbloquea subniveles al aprobar las 3 preguntas de cada etapa. La dificultad sube dentro de cada módulo.
                 </div>
 
                 <LevelGrid
                     :tiers="tiers"
                     :is-unlocked="progress.isUnlocked"
                     :is-completed="progress.isCompleted"
+                    :is-pending="progress.isPending"
+                    :is-locked-out="progress.isLockedOut"
+                    :pending-label="formatPendingLabel"
+                    :lockout-label="formatLockoutLabel"
+                    :can-reset-tier="progress.canResetTier"
                     :level-id="levelId"
                     :selected-id="selectedLevelId"
                     @select="selectLevel"
+                    @view-completed="viewCompletedLevel"
+                    @view-locked-out="viewLockedLevel"
+                    @reset-tier="handleResetTier"
                 />
-
-                <button
-                    type="button"
-                    class="text-xs text-gray-400 underline hover:text-gray-600"
-                    @click="progress.resetProgress()"
-                >
-                    Reiniciar progreso (mock)
-                </button>
             </div>
 
             <div
-                v-else-if="step === 'speaking' && selectedChallenge"
-                class="space-y-4"
+                v-else-if="step === 'speaking' && selectedLevel && currentQuestion"
+                class="grid gap-6 xl:grid-cols-2 xl:items-start"
             >
-                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="surface-card p-6">
                     <div class="mb-3 flex flex-wrap items-center gap-2">
-                        <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                            {{ tierLabel[selectedChallenge.tier] }} · Fase {{ selectedChallenge.phase }}
+                        <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            {{ tierLabel[selectedLevel.tier] }} · {{ sublevelLabel(selectedLevel.phase) }}
                         </span>
-                        <span class="text-xs text-gray-400">
-                            Modo speaking
+                        <span
+                            v-if="questionPosition"
+                            class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                        >
+                            Pregunta {{ questionPosition.current }}/{{ questionPosition.total }}
                         </span>
+                        <DifficultyBadge :difficulty="currentQuestion.step_difficulty" />
                     </div>
 
-                    <p class="mb-1 text-sm font-medium text-gray-500">
+                    <p class="mb-1 text-sm font-medium text-muted">
                         Di en voz alta:
                     </p>
-                    <h2 class="text-2xl font-bold text-gray-900">
-                        {{ selectedChallenge.prompt }}
+                    <h2 class="text-2xl font-bold text-heading">
+                        {{ currentQuestion.prompt }}
                     </h2>
                     <p
-                        v-if="selectedChallenge.hint"
-                        class="mt-3 rounded-lg bg-gray-50 p-3 text-sm text-gray-600"
+                        v-if="currentQuestion.hint"
+                        class="mt-3 rounded-lg bg-gray-50 p-3 text-sm text-body dark:bg-gray-800/60"
                     >
-                        {{ selectedChallenge.hint }}
+                        {{ currentQuestion.hint }}
+                    </p>
+                    <p class="mt-3 text-xs text-muted">
+                        Significado en español: {{ currentQuestion.expected_translation }}
                     </p>
                 </div>
 
-                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="surface-card p-6">
                     <div class="flex flex-col items-center gap-4">
                         <button
                             type="button"
-                            class="flex h-20 w-20 items-center justify-center rounded-full transition-all"
+                            class="flex h-20 w-20 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-60"
                             :class="
                                 isRecording
                                     ? 'animate-pulse bg-red-500 text-white hover:bg-red-600'
                                     : 'bg-blue-600 text-white hover:bg-blue-700'
                             "
+                            :disabled="speech.status.value === 'requesting-permission'"
                             @click="toggleRecording"
                         >
                             <Square
@@ -243,58 +431,64 @@ function continueAfterFeedback(): void {
                                 class="h-8 w-8"
                             />
                         </button>
-                        <p class="text-sm text-gray-600">
-                            {{
-                                isRecording
-                                    ? "Grabando… pulsa para detener"
-                                    : hasRecording
-                                      ? "Audio capturado. Valida tu respuesta."
-                                      : "Pulsa el micrófono para grabar"
-                            }}
+                        <p class="text-center text-sm text-body">
+                            {{ recordingHint }}
+                        </p>
+                        <p
+                            v-if="speech.errorMessage.value"
+                            class="rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        >
+                            {{ speech.errorMessage.value }}
+                        </p>
+                        <p
+                            v-if="isRecording && liveTranscript"
+                            class="w-full rounded-lg bg-gray-50 p-3 text-center text-sm text-heading dark:bg-gray-800/60"
+                        >
+                            {{ liveTranscript }}
                         </p>
                     </div>
 
                     <div
-                        v-if="hasRecording"
-                        class="mt-6 space-y-4 border-t border-gray-100 pt-6"
+                        v-if="hasRecording || isRecording || !speechSupported"
+                        class="mt-6 space-y-4 border-t border-gray-100 pt-6 dark:border-gray-800"
                     >
                         <div>
-                            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                Lo que dijiste (transcripción)
+                            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-muted">
+                                Lo que se escuchó (inglés)
                             </p>
-                            <p class="rounded-lg bg-gray-50 p-3 text-sm text-gray-800">
-                                {{ transcription }}
+                            <textarea
+                                v-if="!speechSupported || isRecording"
+                                v-model="transcription"
+                                rows="2"
+                                class="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-heading dark:border-gray-700 dark:bg-gray-900"
+                                :readonly="speechSupported && isRecording"
+                                placeholder="Aparecerá aquí lo que digas en inglés"
+                            />
+                            <p
+                                v-else
+                                class="rounded-lg bg-gray-50 p-3 text-sm text-heading dark:bg-gray-800/60"
+                            >
+                                {{ transcription || "—" }}
                             </p>
-                        </div>
-                        <div>
-                            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                Traducción detectada
-                            </p>
-                            <p class="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
-                                {{ translation }}
-                            </p>
-                        </div>
-                        <div>
-                            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                Traducción esperada
-                            </p>
-                            <p class="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                                {{ selectedChallenge.expected_translation }}
+                            <p class="mt-1 text-xs text-muted">
+                                No importan mayúsculas ni tildes. Debe coincidir con la frase en inglés de la izquierda.
                             </p>
                         </div>
 
                         <button
+                            v-if="hasRecording || (!speechSupported && transcription.trim())"
                             type="button"
                             class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
                             @click="validateSpeaking"
                         >
                             <MicOff class="h-4 w-4" />
-                            Validar y comparar
+                            Validar respuesta
                         </button>
 
                         <button
+                            v-if="hasRecording || isRecording"
                             type="button"
-                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-body hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
                             @click="resetSpeakingState"
                         >
                             <RotateCcw class="h-4 w-4" />
@@ -306,14 +500,14 @@ function continueAfterFeedback(): void {
 
             <div
                 v-else-if="step === 'feedback' && feedback"
-                class="space-y-4"
+                class="mx-auto w-full max-w-4xl space-y-4 xl:max-w-5xl"
             >
                 <div
                     class="rounded-2xl border p-5 shadow-sm"
                     :class="
                         feedback.is_correct
-                            ? 'border-emerald-100 bg-emerald-50'
-                            : 'border-amber-100 bg-amber-50'
+                            ? 'border-emerald-100 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40'
+                            : 'border-amber-100 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40'
                     "
                 >
                     <div class="mb-2 flex items-center gap-2">
@@ -325,26 +519,38 @@ function continueAfterFeedback(): void {
                             v-else
                             class="h-5 w-5 text-amber-600"
                         />
-                        <h2 class="font-semibold text-gray-900">
-                            {{ feedback.is_correct ? "¡Nivel aprobado!" : "Inténtalo de nuevo" }}
+                        <h2 class="font-semibold text-heading">
+                            {{
+                                feedback.level_completed
+                                    ? "¡Subnivel aprobado!"
+                                    : feedback.is_correct
+                                      ? "¡Pregunta correcta!"
+                                      : "Inténtalo de nuevo"
+                            }}
                             · {{ feedback.score }}%
                         </h2>
                     </div>
-                    <p class="text-sm text-gray-700">
+                    <p class="text-sm text-body">
                         {{ feedback.message }}
                     </p>
                     <p
-                        v-if="feedback.is_correct"
-                        class="mt-2 text-sm font-medium text-emerald-700"
+                        v-if="feedback.is_correct && !feedback.level_completed"
+                        class="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300"
                     >
-                        Siguiente nivel desbloqueado.
+                        Progreso del subnivel: {{ feedback.questions_correct }}/{{ feedback.questions_total }}
+                    </p>
+                    <p
+                        v-if="feedback.level_completed"
+                        class="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300"
+                    >
+                        Siguiente subnivel desbloqueado.
                     </p>
                 </div>
 
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm text-sm text-gray-600 space-y-2">
-                    <p><strong>Transcripción:</strong> {{ feedback.transcription }}</p>
-                    <p><strong>Tu traducción:</strong> {{ feedback.translation }}</p>
-                    <p><strong>Esperada:</strong> {{ feedback.expected_translation }}</p>
+                <div class="surface-card space-y-2 p-5 text-sm text-body">
+                    <p><strong>Lo que dijiste:</strong> {{ feedback.transcription }}</p>
+                    <p><strong>Frase esperada (inglés):</strong> {{ feedback.expected_prompt }}</p>
+                    <p><strong>Significado (español):</strong> {{ feedback.expected_translation }}</p>
                 </div>
 
                 <button
@@ -352,7 +558,13 @@ function continueAfterFeedback(): void {
                     class="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
                     @click="continueAfterFeedback"
                 >
-                    Volver al mapa
+                    {{
+                        feedback.level_completed
+                            ? "Volver al mapa"
+                            : feedback.is_correct
+                              ? "Siguiente pregunta"
+                              : "Reintentar pregunta"
+                    }}
                 </button>
             </div>
         </div>

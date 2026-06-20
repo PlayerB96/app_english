@@ -1,9 +1,12 @@
 import "../css/app.css";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 import { createApp, h, type DefineComponent } from "vue";
 import { createInertiaApp } from "@inertiajs/vue3";
 import { createPinia } from "pinia";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
+
+import { useThemeStore } from "@/Stores/useThemeStore";
 
 const appName = import.meta.env.VITE_APP_NAME || "Dev English";
 
@@ -17,10 +20,12 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();
 
-        createApp({ render: () => h(App, props) })
+        const app = createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(pinia)
-            .mount(el);
+            .use(pinia);
+
+        useThemeStore().init();
+        app.mount(el);
     },
     progress: {
         color: "#2563eb",

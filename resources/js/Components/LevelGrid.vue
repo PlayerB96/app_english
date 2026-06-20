@@ -1,29 +1,80 @@
 <script setup lang="ts">
+import SublevelIntensity from "@/Components/SublevelIntensity.vue";
+import { useLockoutCountdown } from "@/composables/useLockoutCountdown";
 import type { TierInfo } from "@/types/levels";
-import { Check, Lock, Star } from "@lucide/vue";
+import { sublevelLabel } from "@/utils/learningLabels";
+import { Check, Clock, Lock, RotateCcw, Star } from "@lucide/vue";
+import { computed } from "vue";
 
-defineProps<{
+const props = defineProps<{
     tiers: TierInfo[];
     isUnlocked: (id: number) => boolean;
     isCompleted: (id: number) => boolean;
+    isPending?: (id: number) => boolean;
+    pendingLabel?: (id: number) => string | null;
     isLockedOut?: (id: number) => boolean;
     lockoutLabel?: (id: number) => string | null;
+    canResetTier?: (tier: TierInfo["slug"]) => boolean;
     levelId: (tier: TierInfo["slug"], phase: number) => number;
     selectedId?: number | null;
 }>();
 
 const emit = defineEmits<{
     select: [id: number];
+    viewCompleted: [id: number];
+    viewLockedOut: [id: number];
+    resetTier: [tier: TierInfo];
 }>();
 
 const phases = [1, 2, 3, 4, 5];
+
+const hasActiveLockouts = computed(() => {
+    for (const tier of props.tiers) {
+        for (const phase of phases) {
+            if (props.isLockedOut?.(props.levelId(tier.slug, phase))) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+});
+
+const { tick } = useLockoutCountdown(hasActiveLockouts);
+
+function displayLockoutLabel(id: number): string | null {
+    void tick.value;
+
+    return props.lockoutLabel?.(id) ?? null;
+}
+
+function isProgressionLocked(id: number): boolean {
+    return (
+        !props.isUnlocked(id) &&
+        !(props.isLockedOut?.(id) ?? false) &&
+        !props.isCompleted(id)
+    );
+}
 
 function handleSelect(
     id: number,
     unlocked: boolean,
     lockedOut: boolean,
+    completed: boolean,
 ): void {
-    if (!unlocked || lockedOut) {
+    if (lockedOut) {
+        emit("viewLockedOut", id);
+
+        return;
+    }
+
+    if (!unlocked) {
+        return;
+    }
+
+    if (completed) {
+        emit("viewCompleted", id);
+
         return;
     }
 
@@ -32,81 +83,149 @@ function handleSelect(
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="grid gap-6 lg:gap-8 xl:grid-cols-2 2xl:grid-cols-3">
         <article
             v-for="tier in tiers"
             :key="tier.slug"
-            class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            class="surface-card p-5 lg:p-6"
         >
-            <div class="mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    {{ tier.name }}
-                </h2>
-                <p class="mt-1 text-sm text-gray-500">
-                    {{ tier.description }}
-                </p>
+            <div class="mb-4 grid grid-cols-[minmax(0,1fr)_5.75rem] items-start gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-heading">
+                        {{ tier.name }}
+                    </h2>
+                    <p class="mt-1 min-h-[2.5rem] text-sm leading-5 text-muted">
+                        {{ tier.description }}
+                    </p>
+                    <p class="mt-1.5 text-xs text-muted">
+                        5 subniveles · 3 preguntas c/u (Fácil → Medio → Difícil)
+                    </p>
+                </div>
+
+                <button
+                    v-if="canResetTier?.(tier.slug)"
+                    type="button"
+                    class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+                    @click="emit('resetTier', tier)"
+                >
+                    <RotateCcw class="h-3.5 w-3.5" />
+                    Reiniciar
+                </button>
+                <div
+                    v-else
+                    class="w-full"
+                    aria-hidden="true"
+                />
             </div>
 
-            <div class="grid grid-cols-5 gap-2 sm:gap-3">
+            <div class="grid min-w-0 grid-cols-5 gap-1.5 sm:gap-2 lg:gap-3">
                 <button
                     v-for="phase in phases"
                     :key="`${tier.slug}-${phase}`"
                     type="button"
-                    class="relative flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all sm:p-4"
+                    :aria-label="sublevelLabel(phase)"
+                    class="relative flex h-[7.25rem] min-w-0 w-full flex-col items-center justify-between rounded-xl border px-1 py-2 text-center transition-all sm:px-2 sm:py-2.5 lg:px-3"
+                    :title="
+                        isCompleted(levelId(tier.slug, phase))
+                            ? 'Ver respuestas correctas'
+                            : isLockedOut?.(levelId(tier.slug, phase))
+                            ? 'Ver tiempo de espera'
+                              : undefined
+                    "
                     :class="{
-                        'border-blue-500 bg-blue-50 ring-2 ring-blue-200':
+                        'border-blue-500 bg-blue-50 ring-2 ring-blue-200 dark:border-blue-500 dark:bg-blue-950/50 dark:ring-blue-900':
                             selectedId === levelId(tier.slug, phase),
-                        'border-emerald-200 bg-emerald-50 hover:border-emerald-300':
+                        'border-emerald-200 bg-emerald-50 hover:border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950/40 dark:hover:border-emerald-700':
                             isCompleted(levelId(tier.slug, phase)) &&
                             selectedId !== levelId(tier.slug, phase),
-                        'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50':
-                            isUnlocked(levelId(tier.slug, phase)) &&
-                            !isCompleted(levelId(tier.slug, phase)) &&
+                        'cursor-default':
+                            isCompleted(levelId(tier.slug, phase)),
+                        'border-amber-300 bg-amber-50 hover:border-amber-400 dark:border-amber-700 dark:bg-amber-950/50 dark:hover:border-amber-600':
+                            isLockedOut?.(levelId(tier.slug, phase)) &&
+                            selectedId !== levelId(tier.slug, phase),
+                        'border-amber-200 bg-amber-50 hover:border-amber-300 dark:border-amber-800 dark:bg-amber-950/40 dark:hover:border-amber-700':
+                            isPending?.(levelId(tier.slug, phase)) &&
                             !isLockedOut?.(levelId(tier.slug, phase)) &&
                             selectedId !== levelId(tier.slug, phase),
-                        'cursor-not-allowed border-gray-100 bg-gray-50 opacity-60':
-                            !isUnlocked(levelId(tier.slug, phase)) ||
-                            isLockedOut?.(levelId(tier.slug, phase)),
+                        'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50 dark:border-gray-700 dark:bg-gray-800/60 dark:hover:border-blue-600 dark:hover:bg-blue-950/30':
+                            isUnlocked(levelId(tier.slug, phase)) &&
+                            !isCompleted(levelId(tier.slug, phase)) &&
+                            !isPending?.(levelId(tier.slug, phase)) &&
+                            !isLockedOut?.(levelId(tier.slug, phase)) &&
+                            selectedId !== levelId(tier.slug, phase),
+                        'cursor-not-allowed border-gray-100 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-gray-900/40':
+                            isProgressionLocked(levelId(tier.slug, phase)),
                     }"
-                    :disabled="
-                        !isUnlocked(levelId(tier.slug, phase)) ||
-                        isLockedOut?.(levelId(tier.slug, phase))
-                    "
+                    :disabled="isProgressionLocked(levelId(tier.slug, phase))"
                     @click="
                         handleSelect(
                             levelId(tier.slug, phase),
                             isUnlocked(levelId(tier.slug, phase)),
                             isLockedOut?.(levelId(tier.slug, phase)) ?? false,
+                            isCompleted(levelId(tier.slug, phase)),
                         )
                     "
                 >
-                    <Lock
-                        v-if="!isUnlocked(levelId(tier.slug, phase))"
-                        class="mb-1 h-5 w-5 text-gray-400"
-                    />
-                    <Lock
-                        v-else-if="isLockedOut?.(levelId(tier.slug, phase))"
-                        class="mb-1 h-5 w-5 text-amber-500"
-                    />
-                    <Check
-                        v-else-if="isCompleted(levelId(tier.slug, phase))"
-                        class="mb-1 h-5 w-5 text-emerald-600"
-                    />
-                    <Star
-                        v-else
-                        class="mb-1 h-5 w-5 text-blue-500"
-                    />
+                    <div class="flex w-full flex-col items-center">
+                        <Lock
+                            v-if="isProgressionLocked(levelId(tier.slug, phase))"
+                            class="mb-1 h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500"
+                        />
+                        <Lock
+                            v-else-if="isLockedOut?.(levelId(tier.slug, phase))"
+                            class="mb-1 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+                        />
+                        <Check
+                            v-else-if="isCompleted(levelId(tier.slug, phase))"
+                            class="mb-1 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                        />
+                        <Clock
+                            v-else-if="isPending?.(levelId(tier.slug, phase))"
+                            class="mb-1 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+                        />
+                        <Star
+                            v-else
+                            class="mb-1 h-5 w-5 shrink-0 text-blue-500 dark:text-blue-400"
+                        />
 
-                    <span class="text-xs font-semibold text-gray-700 sm:text-sm">
-                        Nivel {{ phase }}
-                    </span>
+                        <span class="flex flex-col items-center leading-tight">
+                            <span class="text-[10px] font-medium uppercase tracking-wide text-muted sm:text-[11px]">
+                                Subnivel
+                            </span>
+                            <span class="text-sm font-semibold text-body sm:text-base">
+                                {{ phase }}
+                            </span>
+                        </span>
 
-                    <span
-                        v-if="isLockedOut?.(levelId(tier.slug, phase)) && lockoutLabel?.(levelId(tier.slug, phase))"
-                        class="mt-1 text-[10px] leading-tight text-amber-600"
+                        <SublevelIntensity
+                            class="mt-1.5"
+                            :intensity="phase"
+                        />
+                    </div>
+
+                    <div
+                        class="flex h-8 w-full shrink-0 items-center justify-center px-0.5 text-center text-[10px] leading-tight"
                     >
-                        {{ lockoutLabel(levelId(tier.slug, phase)) }}
-                    </span>
+                        <span
+                            v-if="isPending?.(levelId(tier.slug, phase)) && pendingLabel?.(levelId(tier.slug, phase))"
+                            class="font-medium text-amber-700 dark:text-amber-300"
+                        >
+                            Pendiente · {{ pendingLabel(levelId(tier.slug, phase)) }}
+                        </span>
+                        <span
+                            v-else-if="isLockedOut?.(levelId(tier.slug, phase)) && displayLockoutLabel(levelId(tier.slug, phase))"
+                            class="font-medium text-amber-700 dark:text-amber-300"
+                        >
+                            En pausa · {{ displayLockoutLabel(levelId(tier.slug, phase)) }}
+                        </span>
+                        <span
+                            v-else
+                            class="invisible select-none"
+                            aria-hidden="true"
+                        >
+                            —
+                        </span>
+                    </div>
                 </button>
             </div>
         </article>

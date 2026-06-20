@@ -1,63 +1,217 @@
 <script setup lang="ts">
+import DifficultyBadge from "@/Components/DifficultyBadge.vue";
 import LevelGrid from "@/Components/LevelGrid.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import { levelId, useLevelProgress } from "@/composables/useLevelProgress";
-import type { QuizChallenge, QuizFeedback, TierInfo } from "@/types/levels";
+import { confirmResetTier } from "@/utils/confirmResetTier";
+import { formatLockoutRemaining } from "@/utils/formatLockout";
+import { showCompletedQuizLevel } from "@/utils/showCompletedLevel";
+import { showLockoutLevel } from "@/utils/showLockoutLevel";
+import { shuffleQuizOptions } from "@/utils/shuffleQuizOptions";
+import { buildLevelSessionQuestions } from "@/utils/buildLevelSessionQuestions";
+import { sublevelLabel } from "@/utils/learningLabels";
+import type {
+    LevelProgressState,
+    QuizFeedback,
+    QuizLevel,
+    TierInfo,
+} from "@/types/levels";
 import {
     ArrowLeft,
     CheckCircle2,
     Lock,
     XCircle,
 } from "@lucide/vue";
-import { computed, ref } from "vue";
+import { usePage } from "@inertiajs/vue3";
+import { computed, ref, toRef, watch } from "vue";
+import type { PageProps } from "@/types/auth";
 
 const props = defineProps<{
     tiers: TierInfo[];
-    challenges: QuizChallenge[];
+    levels: QuizLevel[];
+    progress: LevelProgressState;
 }>();
 
 type Step = "map" | "quiz" | "feedback";
+
+const QUESTIONS_PER_LEVEL = 3;
 
 const step = ref<Step>("map");
 const selectedLevelId = ref<number | null>(null);
 const selectedOption = ref<number | null>(null);
 const feedback = ref<QuizFeedback | null>(null);
+const shuffledOptions = ref<{
+    options: [string, string, string];
+    correct_index: number;
+} | null>(null);
 
-const progress = useLevelProgress("tracks-level-progress");
+const progress = useLevelProgress("quiz", toRef(props, "progress"));
 
-const selectedChallenge = computed(() =>
-    props.challenges.find((c) => c.id === selectedLevelId.value) ?? null,
+const page = usePage<{ auth: PageProps["auth"]; game: PageProps["game"] }>();
+
+const selectedLevel = computed(
+    () => props.levels.find((level) => level.id === selectedLevelId.value) ?? null,
 );
 
-const tierLabel: Record<string, string> = {
-    basico: "Básico",
-    intermedio: "Intermedio",
-    avanzado: "Avanzado",
-};
+const sessionQuestionIds = computed(() => {
+    if (selectedLevelId.value === null) {
+        return [];
+    }
 
-function formatLockoutRemaining(id: number): string | null {
-    const until = progress.lockoutRemaining(id);
+    return progress.sessionQuestionsFor(selectedLevelId.value);
+});
 
-    if (!until) {
+const activeQuestions = computed(() => {
+    const level = selectedLevel.value;
+    const sessionIds = sessionQuestionIds.value;
+
+    if (!level || sessionIds.length === 0) {
+        return [];
+    }
+
+    return buildLevelSessionQuestions(level.questions, sessionIds);
+});
+
+const currentQuestion = computed(() => {
+    const level = selectedLevel.value;
+
+    if (!level) {
         return null;
     }
 
-    const remaining = new Date(until).getTime() - Date.now();
-    const hours = Math.floor(remaining / (1000 * 60 * 60));
-    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    const answered = progress.answeredQuestionsFor(level.id);
 
-    return `Bloqueado ${hours}h ${minutes}m`;
+    return (
+        activeQuestions.value.find(
+            (question) => !answered.includes(question.question_id),
+        ) ?? null
+    );
+});
+
+watch(
+    currentQuestion,
+    (question) => {
+        selectedOption.value = null;
+
+        if (!question) {
+            shuffledOptions.value = null;
+            return;
+        }
+
+        shuffledOptions.value = shuffleQuizOptions(
+            question.options,
+            question.correct_index,
+        );
+    },
+    { immediate: true },
+);
+
+const questionPosition = computed(() => {
+    if (!selectedLevel.value || !currentQuestion.value) {
+        return null;
+    }
+
+    return {
+        current: currentQuestion.value.question_index,
+        total: QUESTIONS_PER_LEVEL,
+    };
+});
+
+const tierLabel: Record<string, string> = {
+    basico: "Módulo Básico",
+    intermedio: "Módulo Intermedio",
+    avanzado: "Módulo Avanzado",
+};
+
+function formatLockoutLabel(id: number): string | null {
+    return formatLockoutRemaining(progress.lockoutRemaining(id));
 }
 
-function selectLevel(id: number): void {
+function formatPendingLabel(id: number): string | null {
+    const item = progress.questionProgressFor(id);
+
+    if (!item) {
+        return null;
+    }
+
+    return `${item.correct}/${item.total}`;
+}
+
+async function handleResetTier(tier: TierInfo): Promise<void> {
+    const confirmed = await confirmResetTier(tier.name);
+
+    if (!confirmed) {
+        return;
+    }
+
+    await progress.resetTier(tier.slug);
+}
+
+const sessionError = ref<string | null>(null);
+
+async function selectLevel(id: number): Promise<void> {
+    sessionError.value = null;
+
     if (!progress.isUnlocked(id) || progress.isLockedOut(id)) {
         return;
     }
 
+    if (progress.isCompleted(id)) {
+        return;
+    }
+
     selectedLevelId.value = id;
+
+    try {
+        await progress.startSession(id);
+    } catch {
+        selectedLevelId.value = null;
+        const errors = page.props.errors as Record<string, string> | undefined;
+        sessionError.value =
+            errors?.level_id ?? "No se pudo iniciar el subnivel. Inténtalo de nuevo.";
+
+        return;
+    }
+
+    if (activeQuestions.value.length === 0) {
+        selectedLevelId.value = null;
+        sessionError.value =
+            "No hay preguntas disponibles para este subnivel. Contacta al administrador.";
+
+        return;
+    }
+
     selectedOption.value = null;
     feedback.value = null;
     step.value = "quiz";
+}
+
+function viewCompletedLevel(id: number): void {
+    const level = props.levels.find((item) => item.id === id);
+
+    if (!level) {
+        return;
+    }
+
+    void showCompletedQuizLevel(tierLabel[level.tier], level);
+}
+
+function viewLockedLevel(id: number): void {
+    const level = props.levels.find((item) => item.id === id);
+    const lockedUntil = progress.lockoutRemaining(id);
+
+    if (!level || !lockedUntil) {
+        return;
+    }
+
+    void showLockoutLevel({
+        moduleName: tierLabel[level.tier],
+        phase: level.phase,
+        lockedUntil,
+        tokens: page.props.auth.user?.tokens ?? 0,
+        skipCost: page.props.game.skip_lockout_cost,
+        onSkip: () => progress.skipLockout(id),
+    });
 }
 
 function backToMap(): void {
@@ -67,56 +221,91 @@ function backToMap(): void {
     feedback.value = null;
 }
 
-function submitAnswer(): void {
-    const challenge = selectedChallenge.value;
+async function submitAnswer(): Promise<void> {
+    const question = currentQuestion.value;
+    const options = shuffledOptions.value;
+    const levelIdValue = selectedLevelId.value;
 
-    if (!challenge || selectedOption.value === null || !selectedLevelId.value) {
+    if (!question || !options || levelIdValue === null || selectedOption.value === null) {
         return;
     }
 
-    const isCorrect = selectedOption.value === challenge.correct_index;
+    const isCorrect = selectedOption.value === options.correct_index;
     let lockedUntil: string | null = null;
+    let result = {
+        completed: false,
+        correct: progress.questionProgressFor(levelIdValue)?.correct ?? 0,
+        total: QUESTIONS_PER_LEVEL,
+    };
 
     if (isCorrect) {
-        progress.markPassed(selectedLevelId.value);
+        result = await progress.markQuestionPassed(
+            levelIdValue,
+            question.question_id,
+            {
+                response_text: options.options[selectedOption.value],
+                input_mode: "choice",
+            },
+        );
     } else {
-        lockedUntil = progress.markFailedWithLockout(selectedLevelId.value, 24);
+        lockedUntil = await progress.markFailedWithLockout(levelIdValue, 24, {
+            question_id: question.question_id,
+            response_text: options.options[selectedOption.value],
+            input_mode: "choice",
+        });
     }
 
     feedback.value = {
         is_correct: isCorrect,
-        correct_answer: challenge.options[challenge.correct_index],
+        correct_answer: options.options[options.correct_index],
         message: isCorrect
-            ? "¡Correcto! Has desbloqueado el siguiente nivel."
-            : "Respuesta incorrecta. Este nivel queda bloqueado por 24 horas.",
+            ? result.completed
+                ? "¡Subnivel aprobado! Respondiste correctamente las 3 preguntas."
+                : `¡Correcto! Llevas ${result.correct}/${result.total} preguntas del subnivel.`
+            : "Respuesta incorrecta. Este subnivel queda bloqueado por 24 horas.",
         locked_until: lockedUntil,
+        level_completed: result.completed,
+        questions_correct: result.correct,
+        questions_total: result.total,
     };
 
     step.value = "feedback";
+}
+
+function continueAfterFeedback(): void {
+    if (!feedback.value?.is_correct || feedback.value.level_completed) {
+        backToMap();
+
+        return;
+    }
+
+    selectedOption.value = null;
+    feedback.value = null;
+    step.value = "quiz";
 }
 </script>
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-3xl space-y-6">
+        <div class="space-y-6">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">
+                    <h1 class="text-2xl font-bold text-heading">
                         Tracks · Vocabulario
                     </h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Elige la traducción correcta entre 3 opciones.
-                        {{ progress.completedCount }}/{{ progress.totalLevels }} niveles completados.
+                    <p class="mt-1 text-sm text-muted">
+                        Cada subnivel tiene 3 preguntas (Fácil → Medio → Difícil). Debes acertar las 3 para aprobarlo.
+                        {{ progress.completedCount }}/{{ progress.totalLevels }} subniveles completados.
                     </p>
                 </div>
                 <button
                     v-if="step !== 'map'"
                     type="button"
-                    class="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                    class="inline-flex items-center gap-1 text-sm font-medium text-body hover:text-heading"
                     @click="backToMap"
                 >
                     <ArrowLeft class="h-4 w-4" />
-                    Mapa de niveles
+                    Mapa de módulos
                 </button>
             </div>
 
@@ -124,66 +313,76 @@ function submitAnswer(): void {
                 v-if="step === 'map'"
                 class="space-y-4"
             >
-                <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Si fallas un nivel, queda bloqueado 24 horas. Acierta para desbloquear el siguiente.
+                <div class="alert-warn">
+                    Si fallas una pregunta, el subnivel queda bloqueado 24 horas. La dificultad sube en cada etapa del módulo.
+                </div>
+
+                <div
+                    v-if="sessionError"
+                    role="alert"
+                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                >
+                    {{ sessionError }}
                 </div>
 
                 <LevelGrid
                     :tiers="tiers"
                     :is-unlocked="progress.isUnlocked"
                     :is-completed="progress.isCompleted"
+                    :is-pending="progress.isPending"
+                    :pending-label="formatPendingLabel"
                     :is-locked-out="progress.isLockedOut"
-                    :lockout-label="formatLockoutRemaining"
+                    :lockout-label="formatLockoutLabel"
+                    :can-reset-tier="progress.canResetTier"
                     :level-id="levelId"
                     :selected-id="selectedLevelId"
                     @select="selectLevel"
+                    @view-completed="viewCompletedLevel"
+                    @view-locked-out="viewLockedLevel"
+                    @reset-tier="handleResetTier"
                 />
-
-                <button
-                    type="button"
-                    class="text-xs text-gray-400 underline hover:text-gray-600"
-                    @click="progress.resetProgress()"
-                >
-                    Reiniciar progreso (mock)
-                </button>
             </div>
 
             <div
-                v-else-if="step === 'quiz' && selectedChallenge"
+                v-else-if="step === 'quiz' && selectedLevel && currentQuestion && shuffledOptions && activeQuestions.length > 0"
                 class="space-y-4"
             >
-                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="surface-card p-6">
                     <div class="mb-3 flex flex-wrap items-center gap-2">
-                        <span class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">
-                            {{ tierLabel[selectedChallenge.tier] }} · Fase {{ selectedChallenge.phase }}
+                        <span class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                            {{ tierLabel[selectedLevel.tier] }} · {{ sublevelLabel(selectedLevel.phase) }}
                         </span>
-                        <span class="text-xs text-gray-400">
-                            Opción múltiple
+                        <span
+                            v-if="questionPosition"
+                            class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                        >
+                            Pregunta {{ questionPosition.current }}/{{ questionPosition.total }}
                         </span>
+                        <DifficultyBadge :difficulty="currentQuestion.step_difficulty" />
                     </div>
 
-                    <p class="mb-1 text-sm font-medium text-gray-500">
+                    <p class="mb-1 text-sm font-medium text-muted">
                         ¿Cuál es la traducción correcta de?
                     </p>
-                    <h2 class="text-2xl font-bold text-gray-900">
-                        {{ selectedChallenge.prompt }}
+                    <h2 class="text-2xl font-bold text-heading">
+                        {{ currentQuestion.prompt }}
                     </h2>
                 </div>
 
-                <div class="space-y-3">
+                <div class="grid gap-3 lg:grid-cols-3 lg:gap-4">
                     <button
-                        v-for="(option, index) in selectedChallenge.options"
-                        :key="index"
+                        v-for="(option, index) in shuffledOptions.options"
+                        :key="`${currentQuestion.question_id}-${index}-${option}`"
                         type="button"
                         class="w-full rounded-xl border p-4 text-left text-sm font-medium transition-all"
                         :class="
                             selectedOption === index
-                                ? 'border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200'
-                                : 'border-gray-200 bg-white text-gray-800 hover:border-blue-300 hover:bg-blue-50/40'
+                                ? 'border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200 dark:border-blue-500 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900'
+                                : 'border-gray-200 bg-white text-heading hover:border-blue-300 hover:bg-blue-50/40 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-blue-600 dark:hover:bg-blue-950/30'
                         "
                         @click="selectedOption = index"
                     >
-                        <span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                        <span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-body dark:bg-gray-800">
                             {{ String.fromCharCode(65 + index) }}
                         </span>
                         {{ option }}
@@ -192,7 +391,7 @@ function submitAnswer(): void {
 
                 <button
                     type="button"
-                    class="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-violet-500 dark:hover:bg-violet-600"
                     :disabled="selectedOption === null"
                     @click="submitAnswer"
                 >
@@ -208,8 +407,8 @@ function submitAnswer(): void {
                     class="rounded-2xl border p-5 shadow-sm"
                     :class="
                         feedback.is_correct
-                            ? 'border-emerald-100 bg-emerald-50'
-                            : 'border-red-100 bg-red-50'
+                            ? 'border-emerald-100 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40'
+                            : 'border-red-100 bg-red-50 dark:border-red-900 dark:bg-red-950/40'
                     "
                 >
                     <div class="mb-2 flex items-center gap-2">
@@ -221,16 +420,28 @@ function submitAnswer(): void {
                             v-else
                             class="h-5 w-5 text-red-600"
                         />
-                        <h2 class="font-semibold text-gray-900">
-                            {{ feedback.is_correct ? "¡Correcto!" : "Nivel bloqueado" }}
+                        <h2 class="font-semibold text-heading">
+                            {{
+                                feedback.level_completed
+                                    ? "¡Subnivel aprobado!"
+                                    : feedback.is_correct
+                                      ? "¡Pregunta correcta!"
+                                      : "Subnivel bloqueado"
+                            }}
                         </h2>
                     </div>
-                    <p class="text-sm text-gray-700">
+                    <p class="text-sm text-body">
                         {{ feedback.message }}
                     </p>
                     <p
+                        v-if="feedback.is_correct && !feedback.level_completed"
+                        class="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300"
+                    >
+                        Progreso del subnivel: {{ feedback.questions_correct }}/{{ feedback.questions_total }}
+                    </p>
+                    <p
                         v-if="!feedback.is_correct && feedback.locked_until"
-                        class="mt-2 text-sm font-medium text-red-700"
+                        class="mt-2 text-sm font-medium text-red-700 dark:text-red-300"
                     >
                         Podrás reintentar después de las
                         {{ new Date(feedback.locked_until).toLocaleString("es-ES") }}.
@@ -239,20 +450,24 @@ function submitAnswer(): void {
 
                 <div
                     v-if="!feedback.is_correct"
-                    class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                    class="surface-card p-5"
                 >
-                    <p class="text-sm text-gray-600">
+                    <p class="text-sm text-body">
                         Respuesta correcta:
-                        <strong class="text-gray-900">{{ feedback.correct_answer }}</strong>
+                        <strong class="text-heading">{{ feedback.correct_answer }}</strong>
                     </p>
                 </div>
 
                 <button
                     type="button"
-                    class="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700"
-                    @click="backToMap"
+                    class="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-600"
+                    @click="continueAfterFeedback"
                 >
-                    Volver al mapa
+                    {{
+                        feedback.is_correct && !feedback.level_completed
+                            ? "Siguiente pregunta"
+                            : "Volver al mapa"
+                    }}
                 </button>
             </div>
         </div>

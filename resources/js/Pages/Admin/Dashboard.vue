@@ -3,7 +3,7 @@ import KpiCard from "@/Components/KpiCard.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminDashboardData } from "@/types/admin";
 import { Link } from "@inertiajs/vue3";
-import { BarChart3, BookOpen, CheckCircle2, Users, Zap } from "@lucide/vue";
+import { BarChart3, BookOpen, CheckCircle2, Users } from "@lucide/vue";
 
 defineProps<{
     dashboard: AdminDashboardData;
@@ -29,13 +29,13 @@ function formatDate(iso: string | null): string {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class="space-y-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
+                <h1 class="text-2xl font-bold text-heading">
                     Panel de administración
                 </h1>
-                <p class="mt-1 text-gray-500">
-                    KPIs y actividad reciente (datos mock).
+                <p class="mt-1 text-muted">
+                    KPIs y actividad reciente desde PostgreSQL.
                 </p>
             </div>
 
@@ -68,34 +68,40 @@ function formatDate(iso: string | null): string {
             </div>
 
             <div class="grid gap-6 lg:grid-cols-2">
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="surface-card p-5">
                     <div class="mb-4 flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900">
+                        <h2 class="text-lg font-semibold text-heading">
                             Learners recientes
                         </h2>
                         <Link
                             href="/admin/users"
-                            class="text-sm font-medium text-blue-600 hover:text-blue-700"
+                            class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                             Ver todos
                         </Link>
                     </div>
                     <div class="space-y-3">
+                        <p
+                            v-if="dashboard.recent_learners.length === 0"
+                            class="rounded-xl bg-gray-50 px-3 py-4 text-sm text-muted dark:bg-gray-800/60"
+                        >
+                            Aún no hay actividad de aprendices.
+                        </p>
                         <div
                             v-for="learner in dashboard.recent_learners"
                             :key="learner.id"
-                            class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5"
+                            class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60"
                         >
                             <div>
-                                <p class="font-medium text-gray-900">
+                                <p class="font-medium text-heading">
                                     {{ learner.name }}
                                 </p>
-                                <p class="text-xs text-gray-500">
+                                <p class="text-xs text-muted">
                                     {{ learner.sessions_completed }} sesiones
                                 </p>
                             </div>
                             <div class="text-right text-sm">
-                                <p class="font-medium text-gray-900">
+                                <p class="font-medium text-heading">
                                     {{ learner.accuracy_pct }}%
                                 </p>
                                 <p class="text-xs capitalize text-gray-500">
@@ -106,14 +112,14 @@ function formatDate(iso: string | null): string {
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="surface-card p-5">
                     <div class="mb-4 flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900">
+                        <h2 class="text-lg font-semibold text-heading">
                             Por track
                         </h2>
                         <Link
                             href="/admin/reports"
-                            class="text-sm font-medium text-blue-600 hover:text-blue-700"
+                            class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                             Reportes
                         </Link>
@@ -122,28 +128,18 @@ function formatDate(iso: string | null): string {
                         <div
                             v-for="report in dashboard.track_reports"
                             :key="report.track_id"
-                            class="rounded-xl border border-gray-100 px-3 py-3"
+                            class="rounded-xl border border-gray-100 px-3 py-3 dark:border-gray-800"
                         >
-                            <p class="font-medium text-gray-900">
+                            <p class="font-medium text-heading">
                                 {{ report.track_name }}
                             </p>
-                            <p class="mt-1 text-sm text-gray-600">
+                            <p class="mt-1 text-sm text-body">
                                 {{ report.sessions_count }} sesiones ·
                                 {{ report.avg_accuracy }}% precisión ·
                                 {{ report.active_learners }} learners
                             </p>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-                <div class="flex items-start gap-2">
-                    <Zap class="mt-0.5 h-4 w-4 shrink-0" />
-                    <p>
-                        Prototipo WS-012: los datos son ficticios. WS-016 conectará
-                        este panel a PostgreSQL.
-                    </p>
                 </div>
             </div>
         </div>

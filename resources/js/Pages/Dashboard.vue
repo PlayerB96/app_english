@@ -31,19 +31,19 @@ function formatDate(iso: string | null): string {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class="space-y-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">
+                    <h1 class="text-2xl font-bold text-heading">
                         Tu progreso
                     </h1>
-                    <p class="mt-1 text-gray-500">
+                    <p class="mt-1 text-muted">
                         Curva de aprendizaje en inglés para desarrollo de software.
                     </p>
                 </div>
                 <Link
                     href="/practice"
-                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
                     <Mic class="h-4 w-4" />
                     Nueva práctica
@@ -51,70 +51,63 @@ function formatDate(iso: string | null): string {
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <TrendingUp class="h-4 w-4" />
-                        Precisión media
+                <div
+                    v-for="(stat, index) in [
+                        { icon: TrendingUp, label: 'Precisión media', value: `${progress.summary.avg_accuracy}%` },
+                        { icon: Target, label: 'Nivel estimado', value: levelLabel[progress.summary.current_level] ?? progress.summary.current_level, capitalize: true },
+                        { icon: Flame, label: 'Racha', value: `${progress.summary.streak_days} días` },
+                        { icon: null, label: 'Sesiones completadas', value: progress.summary.total_sessions },
+                    ]"
+                    :key="index"
+                    class="surface-card p-5"
+                >
+                    <div class="flex items-center gap-2 text-sm text-muted">
+                        <component
+                            :is="stat.icon"
+                            v-if="stat.icon"
+                            class="h-4 w-4"
+                        />
+                        {{ stat.label }}
                     </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-900">
-                        {{ progress.summary.avg_accuracy }}%
-                    </p>
-                </div>
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <Target class="h-4 w-4" />
-                        Nivel estimado
-                    </div>
-                    <p class="mt-2 text-2xl font-bold capitalize text-gray-900">
-                        {{ levelLabel[progress.summary.current_level] ?? progress.summary.current_level }}
-                    </p>
-                </div>
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <Flame class="h-4 w-4" />
-                        Racha
-                    </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-900">
-                        {{ progress.summary.streak_days }} días
-                    </p>
-                </div>
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <p class="text-sm text-gray-500">
-                        Sesiones completadas
-                    </p>
-                    <p class="mt-2 text-2xl font-bold text-gray-900">
-                        {{ progress.summary.total_sessions }}
+                    <p
+                        class="mt-2 text-2xl font-bold text-heading"
+                        :class="{ capitalize: stat.capitalize }"
+                    >
+                        {{ stat.value }}
                     </p>
                 </div>
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-2">
+            <div class="grid gap-6 lg:grid-cols-2 xl:gap-8">
                 <ProgressChart :points="progress.chart_points" />
 
-                <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <h2 class="mb-4 text-sm font-medium text-gray-700">
+                <div class="surface-card p-5">
+                    <h2 class="mb-4 text-sm font-medium text-body">
                         Próximo paso sugerido
                     </h2>
-                    <p class="text-sm text-gray-600">
-                        Continúa con nivel
-                        <strong class="capitalize text-gray-900">
-                            {{ levelLabel[progress.summary.suggested_level] ?? progress.summary.suggested_level }}
+                    <p class="text-sm text-body">
+                        Continúa en
+                        <strong class="text-heading">
+                            {{ progress.summary.suggested_track_name }}
                         </strong>
-                        en Technical Interviews o refuerza vocabulario en Dev Vocabulary.
+                        con nivel
+                        <strong class="capitalize text-heading">
+                            {{ levelLabel[progress.summary.suggested_level] ?? progress.summary.suggested_level }}
+                        </strong>.
                     </p>
-                    <p class="mt-4 text-xs text-gray-500">
+                    <p class="mt-4 text-xs text-muted">
                         Última práctica: {{ formatDate(progress.summary.last_practice_at) }}
                     </p>
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <h2 class="mb-4 text-lg font-semibold text-gray-900">
+            <div class="surface-card p-5">
+                <h2 class="mb-4 text-lg font-semibold text-heading">
                     Sesiones recientes
                 </h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-left text-sm">
-                        <thead class="border-b border-gray-100 text-gray-500">
+                        <thead class="border-b border-gray-100 text-muted dark:border-gray-800">
                             <tr>
                                 <th class="pb-3 pr-4 font-medium">Track</th>
                                 <th class="pb-3 pr-4 font-medium">Fecha</th>
@@ -122,21 +115,29 @@ function formatDate(iso: string | null): string {
                                 <th class="pb-3 font-medium">Precisión</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+                            <tr v-if="progress.recent_sessions.length === 0">
+                                <td
+                                    colspan="4"
+                                    class="py-6 text-center text-sm text-muted"
+                                >
+                                    Aún no tienes sesiones completadas. Empieza en Práctica o Tracks.
+                                </td>
+                            </tr>
                             <tr
                                 v-for="session in progress.recent_sessions"
                                 :key="session.id"
                             >
-                                <td class="py-3 pr-4 font-medium text-gray-900">
+                                <td class="py-3 pr-4 font-medium text-heading">
                                     {{ session.track_name }}
                                 </td>
-                                <td class="py-3 pr-4 text-gray-600">
+                                <td class="py-3 pr-4 text-body">
                                     {{ formatDate(session.completed_at) }}
                                 </td>
-                                <td class="py-3 pr-4 text-gray-600">
+                                <td class="py-3 pr-4 text-body">
                                     {{ session.question_count }}
                                 </td>
-                                <td class="py-3 text-gray-900">
+                                <td class="py-3 text-heading">
                                     {{ session.accuracy_pct }}%
                                 </td>
                             </tr>

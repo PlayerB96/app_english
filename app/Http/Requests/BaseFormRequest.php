@@ -19,6 +19,7 @@ abstract class BaseFormRequest extends FormRequest
             'min' => 'El campo :attribute debe tener al menos :min caracteres.',
             'max' => 'El campo :attribute no debe exceder :max caracteres.',
             'unique' => 'El campo :attribute ya se encuentra registrado.',
+            'confirmed' => 'Las contraseñas no coinciden.',
         ];
     }
 
@@ -28,6 +29,7 @@ abstract class BaseFormRequest extends FormRequest
             'name' => 'nombre',
             'email' => 'correo electrónico',
             'password' => 'contraseña',
+            'password_confirmation' => 'confirmación de contraseña',
         ];
     }
 }

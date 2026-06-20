@@ -1,0 +1,842 @@
+{
+    "basico:1": [
+        {
+            "prompt": "Pear",
+            "options": [
+                "Pera",
+                "Uva",
+                "Limón"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Grape",
+            "options": [
+                "Uva",
+                "Pera",
+                "Mango"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Milk",
+            "options": [
+                "Leche",
+                "Pan",
+                "Queso"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Bread",
+            "options": [
+                "Pan",
+                "Sopa",
+                "Carne"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Cat",
+            "options": [
+                "Gato",
+                "Perro",
+                "Pez"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Dog",
+            "options": [
+                "Perro",
+                "Gato",
+                "Pájaro"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "basico:2": [
+        {
+            "prompt": "Chair",
+            "options": [
+                "Silla",
+                "Mesa",
+                "Cama"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Window",
+            "options": [
+                "Ventana",
+                "Puerta",
+                "Techo"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Door",
+            "options": [
+                "Puerta",
+                "Ventana",
+                "Piso"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Phone",
+            "options": [
+                "Teléfono",
+                "Radio",
+                "TV"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Computer",
+            "options": [
+                "Computadora",
+                "Libro",
+                "Lápiz"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Notebook",
+            "options": [
+                "Cuaderno",
+                "Revista",
+                "Mapa"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "basico:3": [
+        {
+            "prompt": "I am thirsty",
+            "options": [
+                "Tengo sed",
+                "Tengo hambre",
+                "Estoy feliz"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Can I have water?",
+            "options": [
+                "¿Puedo tomar agua?",
+                "¿Dónde está el baño?",
+                "¿Qué hora es?"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "I want coffee",
+            "options": [
+                "Quiero café",
+                "Quiero dormir",
+                "Quiero salir"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "It is cold",
+            "options": [
+                "Hace frío",
+                "Hace calor",
+                "Hace viento"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "I am hot",
+            "options": [
+                "Tengo calor",
+                "Tengo sueño",
+                "Tengo prisa"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Do you have juice?",
+            "options": [
+                "¿Tienes jugo?",
+                "¿Tienes tiempo?",
+                "¿Tienes hermanos?"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "basico:4": [
+        {
+            "prompt": "Good morning",
+            "options": [
+                "Buenos días",
+                "Buenas noches",
+                "Buenas tardes"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Excuse me",
+            "options": [
+                "Disculpa",
+                "Gracias",
+                "Por favor"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Sorry",
+            "options": [
+                "Lo siento",
+                "De nada",
+                "Hasta luego"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Please",
+            "options": [
+                "Por favor",
+                "Perdón",
+                "Adiós"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Thank you",
+            "options": [
+                "Gracias",
+                "Hola",
+                "Chao"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "How are you?",
+            "options": [
+                "¿Cómo estás?",
+                "¿Qué tal?",
+                "¿Dónde vives?"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "basico:5": [
+        {
+            "prompt": "Where are you from?",
+            "options": [
+                "¿De dónde eres?",
+                "¿Cómo te llamas?",
+                "¿Cuántos años tienes?"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "I live here",
+            "options": [
+                "Vivo aquí",
+                "Trabajo aquí",
+                "Estudio aquí"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "I am a developer",
+            "options": [
+                "Soy desarrollador",
+                "Soy diseñador",
+                "Soy estudiante"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Nice day",
+            "options": [
+                "Qué buen día",
+                "Qué mal día",
+                "Qué largo día"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "See you tomorrow",
+            "options": [
+                "Nos vemos mañana",
+                "Hasta luego",
+                "Buenas noches"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Take care",
+            "options": [
+                "Cuídate",
+                "Adiós",
+                "Gracias"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "intermedio:1": [
+        {
+            "prompt": "Branch",
+            "options": [
+                "Rama",
+                "Commit",
+                "Tag"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Commit",
+            "options": [
+                "Commit",
+                "Push",
+                "Pull"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Staging",
+            "options": [
+                "Entorno de pruebas",
+                "Producción",
+                "Localhost"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Bug fix",
+            "options": [
+                "Corrección de bug",
+                "Nueva feature",
+                "Documentación"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Feature branch",
+            "options": [
+                "Rama de feature",
+                "Rama principal",
+                "Tag release"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Rebase",
+            "options": [
+                "Rebase",
+                "Merge",
+                "Cherry-pick"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "intermedio:2": [
+        {
+            "prompt": "Incident",
+            "options": [
+                "Incidente",
+                "Mejora",
+                "Tarea"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "On call",
+            "options": [
+                "De guardia",
+                "De vacaciones",
+                "En reunión"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Root cause",
+            "options": [
+                "Causa raíz",
+                "Síntoma",
+                "Parche"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Status page",
+            "options": [
+                "Página de estado",
+                "Wiki",
+                "Blog"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Service restored",
+            "options": [
+                "Servicio restaurado",
+                "Servicio caído",
+                "Servicio lento"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Postmortem",
+            "options": [
+                "Postmortem",
+                "Stand-up",
+                "Demo"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "intermedio:3": [
+        {
+            "prompt": "Release notes",
+            "options": [
+                "Notas de release",
+                "Manual de usuario",
+                "Plan de pruebas"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Deploy window",
+            "options": [
+                "Ventana de despliegue",
+                "Horario laboral",
+                "Fin de semana"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Feature flag",
+            "options": [
+                "Feature flag",
+                "Bug crítico",
+                "Log de errores"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Regression",
+            "options": [
+                "Regresión",
+                "Refactor",
+                "Optimización"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Cherry pick",
+            "options": [
+                "Cherry pick",
+                "Force push",
+                "Hard reset"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Hot patch",
+            "options": [
+                "Parche urgente",
+                "Release mayor",
+                "Migración"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "intermedio:4": [
+        {
+            "prompt": "Mock test",
+            "options": [
+                "Prueba simulada",
+                "Prueba manual",
+                "Prueba visual"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "End to end test",
+            "options": [
+                "Prueba end to end",
+                "Prueba unitaria",
+                "Prueba de carga"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Flaky test",
+            "options": [
+                "Prueba inestable",
+                "Prueba rápida",
+                "Prueba obsoleta"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Test suite",
+            "options": [
+                "Suite de pruebas",
+                "Plan de proyecto",
+                "Checklist"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Assertion",
+            "options": [
+                "Aserción",
+                "Excepción",
+                "Comentario"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Refactor safely",
+            "options": [
+                "Refactorizar con seguridad",
+                "Borrar código",
+                "Ignorar tests"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "intermedio:5": [
+        {
+            "prompt": "Artifact",
+            "options": [
+                "Artefacto",
+                "Log",
+                "Ticket"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Build failed",
+            "options": [
+                "La compilación falló",
+                "La compilación pasó",
+                "El deploy terminó"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "CI pipeline",
+            "options": [
+                "Pipeline de CI",
+                "Servidor local",
+                "VPN"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Merge conflict",
+            "options": [
+                "Conflicto de merge",
+                "Error de red",
+                "Permiso denegado"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Code owner",
+            "options": [
+                "Propietario del código",
+                "Product owner",
+                "Scrum master"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Release candidate",
+            "options": [
+                "Candidato a release",
+                "Versión beta",
+                "Versión alpha"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "avanzado:1": [
+        {
+            "prompt": "Backpressure",
+            "options": [
+                "Contrapresión",
+                "Latencia",
+                "Cache"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Sharding",
+            "options": [
+                "Sharding",
+                "Index",
+                "Queue"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Replication lag",
+            "options": [
+                "Retraso de replicación",
+                "Timeout",
+                "Lock"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Cache hit",
+            "options": [
+                "Acierto de caché",
+                "Cache miss",
+                "Cache bust"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Observability",
+            "options": [
+                "Observabilidad",
+                "Seguridad",
+                "Usabilidad"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "SLA breach",
+            "options": [
+                "Incumplimiento de SLA",
+                "Deploy exitoso",
+                "Rollback"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "avanzado:2": [
+        {
+            "prompt": "Distributed lock",
+            "options": [
+                "Bloqueo distribuido",
+                "Mutex local",
+                "Semáforo"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Split brain",
+            "options": [
+                "Split brain",
+                "Blue green",
+                "Canary"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Quorum",
+            "options": [
+                "Quórum",
+                "Cluster",
+                "Nodo"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Leader election",
+            "options": [
+                "Elección de líder",
+                "Load test",
+                "Stress test"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Data partition",
+            "options": [
+                "Partición de datos",
+                "Backup completo",
+                "Restore"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Consensus",
+            "options": [
+                "Consenso",
+                "Conflicto",
+                "Duplicado"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "avanzado:3": [
+        {
+            "prompt": "Fault tolerance",
+            "options": [
+                "Tolerancia a fallos",
+                "Single point",
+                "Bottleneck"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Graceful degradation",
+            "options": [
+                "Degradación controlada",
+                "Caída total",
+                "Reinicio"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Rate limit",
+            "options": [
+                "Límite de tasa",
+                "Rate spike",
+                "Burst"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Health check",
+            "options": [
+                "Chequeo de salud",
+                "Ping",
+                "Trace"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Service mesh",
+            "options": [
+                "Malla de servicios",
+                "Monolito",
+                "Gateway"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Zero trust",
+            "options": [
+                "Confianza cero",
+                "Acceso público",
+                "VPN"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "avanzado:4": [
+        {
+            "prompt": "Saga pattern",
+            "options": [
+                "Patrón saga",
+                "Patrón singleton",
+                "Patrón adapter"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Event sourcing",
+            "options": [
+                "Event sourcing",
+                "Polling",
+                "Batch"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Idempotency key",
+            "options": [
+                "Clave de idempotencia",
+                "API key",
+                "Token"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Poison message",
+            "options": [
+                "Mensaje envenenado",
+                "Mensaje duplicado",
+                "Mensaje vacío"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Dead letter queue",
+            "options": [
+                "Cola de mensajes fallidos",
+                "Cola principal",
+                "Topic"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Timeout budget",
+            "options": [
+                "Presupuesto de timeout",
+                "Memory leak",
+                "CPU spike"
+            ],
+            "correct_index": 0
+        }
+    ],
+    "avanzado:5": [
+        {
+            "prompt": "Chaos engineering",
+            "options": [
+                "Ingeniería del caos",
+                "Testing manual",
+                "Code review"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Immutable infrastructure",
+            "options": [
+                "Infraestructura inmutable",
+                "Servidor físico",
+                "Script manual"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Progressive delivery",
+            "options": [
+                "Entrega progresiva",
+                "Big bang release",
+                "Rollback"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Runbook",
+            "options": [
+                "Runbook",
+                "Roadmap",
+                "Backlog"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Incident commander",
+            "options": [
+                "Comandante de incidente",
+                "Developer",
+                "Manager"
+            ],
+            "correct_index": 0
+        },
+        {
+            "prompt": "Post incident review",
+            "options": [
+                "Revisión post incidente",
+                "Daily standup",
+                "Sprint planning"
+            ],
+            "correct_index": 0
+        }
+    ]
+}

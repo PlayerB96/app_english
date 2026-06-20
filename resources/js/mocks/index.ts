@@ -1,9 +1,8 @@
 /**
- * Referencia de fixtures WS-012 (espejo de App\Support\MockData).
- * La app recibe estos datos vía props Inertia desde PHP.
+ * Referencia de fixtures WS-012 (espejo parcial de App\Support\MockData).
+ * Práctica y tracks reciben tiers/challenges desde PostgreSQL vía Inertia.
  */
-export { tiers, speakingChallenges, quizChallenges } from "@/mocks/levels";
-export { learningTracks, questionsByTrack } from "@/mocks/practice";
+export { learningTracks } from "@/mocks/practice";
 export { learnerDashboard } from "@/mocks/progress";
 export {
     adminDashboard,

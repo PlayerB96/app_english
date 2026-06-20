@@ -20,6 +20,7 @@ class UserSeeder extends Seeder
                 'password' => 'password',
                 'role' => UserRole::Learner,
                 'email_verified_at' => now(),
+                'tokens' => config('tokens.initial_balance', 100),
             ],
         );
 
@@ -30,6 +31,7 @@ class UserSeeder extends Seeder
                 'password' => 'password',
                 'role' => UserRole::Administrator,
                 'email_verified_at' => now(),
+                'tokens' => 0,
             ],
         );
     }

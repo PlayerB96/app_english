@@ -11,6 +11,8 @@ class MiddlewareTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $seed = true;
+
     public function test_administrator_can_access_admin_panel(): void
     {
         $admin = User::factory()->administrator()->create();
@@ -58,11 +60,19 @@ class MiddlewareTest extends TestCase
 
         $this->actingAs($learner)->get('/practice')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Practice/Index')->has('tiers')->has('challenges'));
+            ->assertInertia(fn ($page) => $page
+                ->component('Practice/Index')
+                ->has('tiers', 3)
+                ->has('levels', 15)
+                ->has('progress.unlocked', 1));
 
         $this->actingAs($learner)->get('/tracks')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Tracks/Index')->has('tiers')->has('challenges'));
+            ->assertInertia(fn ($page) => $page
+                ->component('Tracks/Index')
+                ->has('tiers', 3)
+                ->has('levels', 15)
+                ->has('progress.unlocked', 1));
     }
 
     public function test_guest_cannot_access_admin_panel(): void

@@ -44,4 +44,17 @@ class AuthRepositoryTest extends TestCase
 
         $this->assertNull($repository->authenticate('missing@app-english.test', 'password'));
     }
+
+    public function test_create_user_persists_learner_with_unverified_email(): void
+    {
+        $repository = app(AuthRepositoryInterface::class);
+
+        $user = $repository->createUser('Test User', 'test@example.com', 'password123');
+
+        $this->assertSame('Test User', $user->name);
+        $this->assertSame('test@example.com', $user->email);
+        $this->assertNull($user->email_verified_at);
+        $this->assertTrue($user->isLearner());
+        $this->assertSame(100, $user->tokens);
+    }
 }
