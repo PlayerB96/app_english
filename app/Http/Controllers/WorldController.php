@@ -56,7 +56,7 @@ class WorldController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('status', '¡Mundo desbloqueado! Explora los 15 desafíos del mapa.');
+        return back()->with('status', '¡Mundo desbloqueado! Explora Linux Kingdom en el mapa.');
     }
 
     public function complete(Request $request, int $level): RedirectResponse

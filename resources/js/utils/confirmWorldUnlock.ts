@@ -1,6 +1,7 @@
 import { gameSwalTheme } from "@/utils/swalGameTheme";
 import { powerIconHtml } from "@/utils/lucideIconHtml";
 import { POWER_UNIT } from "@/utils/powerLabels";
+import { WORLD_TOTAL_LEVELS } from "@/types/world";
 import Swal from "sweetalert2";
 
 export interface ConfirmWorldUnlockOptions {
@@ -25,8 +26,8 @@ export async function confirmWorldUnlock(
                     <span class="reset-tier-reward__unit">${POWER_UNIT}</span>
                 </div>
                 <p style="margin:0.75rem 0 0;font-size:0.8125rem;line-height:1.45;color:${theme.muted};">
-                    Acceso permanente a <strong style="color:${theme.color};">15 desafíos del Mundo</strong>:
-                    roleplay, demos, entrevistas y comunicación dev avanzada.
+                    Acceso permanente a <strong style="color:${theme.color};">${WORLD_TOTAL_LEVELS} niveles de Linux Kingdom</strong>:
+                    terminal, permisos, procesos y entrevista final en inglés.
                 </p>
                 <p style="margin:0.5rem 0 0;font-size:0.75rem;line-height:1.45;color:${theme.muted};">
                     El ${POWER_UNIT} se gana gratis completando subniveles (+10) o reiniciando módulos en Práctica y Tracks.

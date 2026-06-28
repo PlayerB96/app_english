@@ -8,14 +8,14 @@ use InvalidArgumentException;
 
 class WorldProgressService
 {
-    public const TOTAL_LEVELS = 15;
-
-    /** @var list<string> */
-    private const TIER_ORDER = ['basico', 'intermedio', 'avanzado'];
-
     public function __construct(
         private readonly WorldCatalogService $catalog,
     ) {}
+
+    public function totalLevels(): int
+    {
+        return $this->catalog->totalLevels();
+    }
 
     /**
      * @return array{unlocked: list<int>, completed: list<int>}
@@ -38,8 +38,8 @@ class WorldProgressService
 
         $unlocked = [];
 
-        for ($levelId = 1; $levelId <= self::TOTAL_LEVELS; $levelId += 1) {
-            if ($this->isUnlocked($user, $levelId, $completed)) {
+        for ($levelId = 1; $levelId <= $this->totalLevels(); $levelId += 1) {
+            if ($this->catalog->levelExists($levelId) && $this->isUnlocked($user, $levelId, $completed)) {
                 $unlocked[] = $levelId;
             }
         }
@@ -121,23 +121,12 @@ class WorldProgressService
     {
         $tier = $this->catalog->tierForLevel($levelId);
 
-        if ($tier === 'basico') {
-            return true;
-        }
-
-        $completed ??= UserWorldProgress::query()
-            ->where('user_id', $user->id)
-            ->pluck('level_id')
-            ->all();
-
-        $requiredLevel = $tier === 'intermedio' ? 5 : 10;
-
-        return in_array($requiredLevel, $completed, true);
+        return $this->catalog->isWorldAvailable($tier);
     }
 
     private function assertValidLevelId(int $levelId): void
     {
-        if ($levelId < 1 || $levelId > self::TOTAL_LEVELS) {
+        if ($levelId < 1 || $levelId > $this->totalLevels() || ! $this->catalog->levelExists($levelId)) {
             throw new InvalidArgumentException('Desafío inválido.');
         }
     }

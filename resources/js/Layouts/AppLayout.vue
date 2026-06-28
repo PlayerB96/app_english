@@ -27,6 +27,10 @@ const appStore = useAppStore();
 const user = computed(() => page.props.auth.user);
 const isAdmin = computed(() => user.value?.role === "administrator");
 
+const mainContainerClass = computed(() =>
+    page.url.startsWith("/world") ? "app-container-game" : "app-container",
+);
+
 const topBarRef = ref<HTMLElement | null>(null);
 const desktopNavRef = ref<HTMLElement | null>(null);
 
@@ -290,7 +294,10 @@ onMounted(() => {
             class="pb-4 md:pb-6 lg:pb-8"
             :style="{ paddingTop: mainPaddingTop }"
         >
-            <div class="app-container space-y-6">
+            <div
+                class="space-y-6"
+                :class="mainContainerClass"
+            >
                 <AppFlash />
                 <slot />
             </div>

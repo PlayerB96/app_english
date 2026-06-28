@@ -26,6 +26,11 @@
         @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 xl:max-w-[90rem] 2xl:max-w-[96rem];
     }
 
+    /** Mundo: mapa y preview a ancho casi completo en desktop. */
+    .app-container-game {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 xl:max-w-[92rem] 2xl:max-w-[106rem];
+    }
+
     .surface-page {
         @apply min-h-screen bg-gray-50 dark:bg-gray-950;
     }
@@ -119,8 +124,95 @@
         @apply px-1.5 py-0.5 text-[10px];
     }
 
+    .world-header-badge {
+        @apply relative flex h-11 w-11 shrink-0 items-center justify-center overflow-visible rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-orange-500 text-white shadow-md shadow-indigo-500/40 md:h-12 md:w-12 dark:from-indigo-500 dark:via-violet-500 dark:to-orange-400 dark:shadow-indigo-900/60;
+    }
+
+    .world-header-badge__map {
+        @apply relative z-10 h-5 w-5 md:h-[1.35rem] md:w-[1.35rem];
+        animation: world-badge-float 2.8s ease-in-out infinite;
+        filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.35));
+    }
+
+    .world-header-badge__spark-wrap {
+        @apply absolute -right-0.5 -top-0.5 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-orange-400 text-white shadow-sm dark:bg-orange-300 dark:text-orange-950;
+        animation: world-badge-spark-pop 2.2s ease-in-out infinite;
+    }
+
+    .world-header-badge__spark {
+        @apply h-2.5 w-2.5;
+    }
+
+    .world-header-badge__orbit-dot {
+        @apply pointer-events-none absolute z-0 h-1.5 w-1.5 rounded-full bg-orange-200/90 dark:bg-orange-100;
+        animation: world-badge-orbit 4s linear infinite;
+    }
+
+    .world-header-badge__ring {
+        @apply pointer-events-none absolute inset-0 rounded-xl border border-white/35;
+        animation: world-badge-pulse 2.4s ease-out infinite;
+    }
+
+    .world-header-badge__ring--delayed {
+        animation-delay: 1.2s;
+    }
+
+    @keyframes world-badge-float {
+        0%,
+        100% {
+            transform: translateY(0) scale(1);
+        }
+
+        50% {
+            transform: translateY(-2px) scale(1.05);
+        }
+    }
+
+    @keyframes world-badge-spark-pop {
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.12);
+            opacity: 0.85;
+        }
+    }
+
+    @keyframes world-badge-orbit {
+        from {
+            transform: rotate(0deg) translateX(13px) rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg) translateX(13px) rotate(-360deg);
+        }
+    }
+
+    @keyframes world-badge-pulse {
+        0% {
+            transform: scale(1);
+            opacity: 0.55;
+        }
+
+        70%,
+        100% {
+            transform: scale(1.5);
+            opacity: 0;
+        }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .power-icon-animated .power-icon-graphic {
+            animation: none;
+        }
+
+        .world-header-badge__map,
+        .world-header-badge__spark-wrap,
+        .world-header-badge__orbit-dot,
+        .world-header-badge__ring {
             animation: none;
         }
     }

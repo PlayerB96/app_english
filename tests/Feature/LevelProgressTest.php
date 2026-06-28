@@ -53,7 +53,7 @@ class LevelProgressTest extends TestCase
                 ->where('world_access.unlocked', false)
                 ->where('world_access.unlock_cost', 300)
                 ->has('worlds', 3)
-                ->has('levels', 15));
+                ->has('levels', 18));
     }
 
     public function test_learner_can_unlock_world_with_tokens(): void
