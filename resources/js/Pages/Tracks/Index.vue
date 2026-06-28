@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import DifficultyBadge from "@/Components/DifficultyBadge.vue";
 import LevelGrid from "@/Components/LevelGrid.vue";
-import AppLayout from "@/Layouts/AppLayout.vue";
 import { levelId, useLevelProgress } from "@/composables/useLevelProgress";
+import { useInitialLevelQuery } from "@/composables/useInitialLevelQuery";
 import { confirmResetTier } from "@/utils/confirmResetTier";
 import { formatLockoutRemaining } from "@/utils/formatLockout";
 import { showCompletedQuizLevel } from "@/utils/showCompletedLevel";
@@ -138,7 +138,13 @@ function formatPendingLabel(id: number): string | null {
 }
 
 async function handleResetTier(tier: TierInfo): Promise<void> {
-    const confirmed = await confirmResetTier(tier.name);
+    const info = progress.tierResetFor(tier.slug);
+    const confirmed = await confirmResetTier({
+        tierName: tier.name,
+        cost: info.cost,
+        resetCount: info.count,
+        maxResets: info.max,
+    });
 
     if (!confirmed) {
         return;
@@ -193,7 +199,7 @@ function viewCompletedLevel(id: number): void {
         return;
     }
 
-    void showCompletedQuizLevel(tierLabel[level.tier], level);
+    void showCompletedQuizLevel(tierLabel[level.tier], level.phase, level.id);
 }
 
 function viewLockedLevel(id: number): void {
@@ -283,11 +289,24 @@ function continueAfterFeedback(): void {
     feedback.value = null;
     step.value = "quiz";
 }
+
+useInitialLevelQuery(async (id) => {
+    if (progress.isLockedOut(id)) {
+        viewLockedLevel(id);
+
+        return;
+    }
+
+    if (!progress.isUnlocked(id) || progress.isCompleted(id)) {
+        return;
+    }
+
+    await selectLevel(id);
+});
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h1 class="text-2xl font-bold text-heading">
@@ -301,7 +320,7 @@ function continueAfterFeedback(): void {
                 <button
                     v-if="step !== 'map'"
                     type="button"
-                    class="inline-flex items-center gap-1 text-sm font-medium text-body hover:text-heading"
+                    class="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-body hover:text-heading"
                     @click="backToMap"
                 >
                     <ArrowLeft class="h-4 w-4" />
@@ -334,6 +353,8 @@ function continueAfterFeedback(): void {
                     :is-locked-out="progress.isLockedOut"
                     :lockout-label="formatLockoutLabel"
                     :can-reset-tier="progress.canResetTier"
+                    :tier-reset-label="progress.tierResetLabel"
+                    :tier-reset-cost="(slug) => progress.tierResetFor(slug).cost"
                     :level-id="levelId"
                     :selected-id="selectedLevelId"
                     @select="selectLevel"
@@ -471,5 +492,4 @@ function continueAfterFeedback(): void {
                 </button>
             </div>
         </div>
-    </AppLayout>
 </template>

@@ -50,6 +50,35 @@ class ChallengeCatalogService
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function questionById(LevelProgressMode $mode, int $questionId): ?array
+    {
+        $slug = $mode === LevelProgressMode::Speaking
+            ? config('learning.tracks.speaking.slug')
+            : config('learning.tracks.quiz.slug');
+
+        $track = LearningTrack::query()->where('slug', $slug)->first();
+
+        if ($track === null) {
+            return null;
+        }
+
+        $question = Question::query()
+            ->where('learning_track_id', $track->id)
+            ->where('id', $questionId)
+            ->first();
+
+        if ($question === null) {
+            return null;
+        }
+
+        $type = $mode === LevelProgressMode::Speaking ? 'speaking' : 'quiz';
+
+        return $this->serializeQuestion($question, $type);
+    }
+
+    /**
      * @return list<int>
      */
     public function questionIdsForLevel(LevelProgressMode $mode, int $levelId): array

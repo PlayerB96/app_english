@@ -6,6 +6,7 @@ export interface AuthUser {
     email: string;
     role: UserRole;
     tokens?: number;
+    world_unlocked?: boolean;
 }
 
 export interface AuthProps {
@@ -19,6 +20,10 @@ export interface PageProps {
     };
     game: {
         skip_lockout_cost: number;
+        max_tier_resets: number;
+        tier_reset_cost: number;
+        sublevel_complete_reward: number;
+        world_unlock_cost: number;
     };
 }
 

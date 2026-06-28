@@ -10,6 +10,10 @@ export default {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ["Outfit", "ui-sans-serif", "system-ui", "sans-serif"],
+                display: ["Chakra Petch", "Outfit", "ui-sans-serif", "system-ui", "sans-serif"],
+            },
             colors: {
                 primary: {
                     50: "#eff6ff",

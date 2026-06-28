@@ -5,6 +5,7 @@ namespace App\Models;
 /**
  * @property-read UserRole $role
  * @property int $tokens
+ * @property \Illuminate\Support\Carbon|null $world_unlocked_at
  */
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'tokens'])]
+#[Fillable(['name', 'email', 'password', 'role', 'tokens', 'world_unlocked_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -33,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'role' => UserRole::class,
             'tokens' => 'integer',
+            'world_unlocked_at' => 'datetime',
         ];
     }
 

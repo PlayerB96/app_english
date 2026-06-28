@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminLearnerRow } from "@/types/admin";
 
 defineProps<{
@@ -26,8 +25,7 @@ function formatDate(iso: string | null): string {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div>
                 <h1 class="text-2xl font-bold text-heading">
                     Usuarios learners
@@ -85,5 +83,4 @@ function formatDate(iso: string | null): string {
                 </table>
             </div>
         </div>
-    </AppLayout>
 </template>

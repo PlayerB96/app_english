@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import DifficultyBadge from "@/Components/DifficultyBadge.vue";
 import LevelGrid from "@/Components/LevelGrid.vue";
-import AppLayout from "@/Layouts/AppLayout.vue";
 import {
     compareSpokenPhrase,
     levelId,
     scoreSpokenPhrase,
     useLevelProgress,
 } from "@/composables/useLevelProgress";
+import { useInitialLevelQuery } from "@/composables/useInitialLevelQuery";
 import { useSpeechRecognition } from "@/composables/useSpeechRecognition";
+import { useSpeechSynthesis } from "@/composables/useSpeechSynthesis";
 import { confirmResetTier } from "@/utils/confirmResetTier";
 import { formatLockoutRemaining } from "@/utils/formatLockout";
 import { showCompletedSpeakingLevel } from "@/utils/showCompletedLevel";
@@ -28,6 +29,7 @@ import {
     MicOff,
     RotateCcw,
     Square,
+    Volume2,
     XCircle,
 } from "@lucide/vue";
 import { usePage } from "@inertiajs/vue3";
@@ -50,6 +52,7 @@ const transcription = ref("");
 const feedback = ref<SpeakingFeedback | null>(null);
 
 const speech = useSpeechRecognition();
+const promptSpeech = useSpeechSynthesis();
 
 const page = usePage<{ auth: PageProps["auth"]; game: PageProps["game"] }>();
 
@@ -157,7 +160,13 @@ function viewLockedLevel(id: number): void {
 }
 
 async function handleResetTier(tier: TierInfo): Promise<void> {
-    const confirmed = await confirmResetTier(tier.name);
+    const info = progress.tierResetFor(tier.slug);
+    const confirmed = await confirmResetTier({
+        tierName: tier.name,
+        cost: info.cost,
+        resetCount: info.count,
+        maxResets: info.max,
+    });
 
     if (!confirmed) {
         return;
@@ -187,11 +196,12 @@ function viewCompletedLevel(id: number): void {
         return;
     }
 
-    void showCompletedSpeakingLevel(tierLabel[level.tier], level);
+    void showCompletedSpeakingLevel(tierLabel[level.tier], level.phase, level.id);
 }
 
 function resetSpeakingState(): void {
     speech.abort();
+    promptSpeech.cancel();
     isRecording.value = false;
     capturePhase.value = "idle";
     transcription.value = "";
@@ -201,6 +211,7 @@ function resetSpeakingState(): void {
 
 onBeforeUnmount(() => {
     speech.abort();
+    promptSpeech.cancel();
 });
 
 function backToMap(): void {
@@ -224,6 +235,7 @@ async function startRecording(): Promise<void> {
         return;
     }
 
+    promptSpeech.cancel();
     speech.errorMessage.value = null;
     speech.resetTranscript();
     isRecording.value = true;
@@ -322,11 +334,34 @@ function continueAfterFeedback(): void {
     resetSpeakingState();
     step.value = "speaking";
 }
+
+function togglePromptSpeech(): void {
+    const prompt = currentQuestion.value?.prompt;
+
+    if (!prompt) {
+        return;
+    }
+
+    promptSpeech.toggle(prompt, "en-US");
+}
+
+useInitialLevelQuery(async (id) => {
+    if (progress.isLockedOut(id)) {
+        viewLockedLevel(id);
+
+        return;
+    }
+
+    if (!progress.isUnlocked(id) || progress.isCompleted(id)) {
+        return;
+    }
+
+    selectLevel(id);
+});
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h1 class="text-2xl font-bold text-heading">
@@ -340,7 +375,7 @@ function continueAfterFeedback(): void {
                 <button
                     v-if="step !== 'map'"
                     type="button"
-                    class="inline-flex items-center gap-1 text-sm font-medium text-body hover:text-heading"
+                    class="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-body hover:text-heading"
                     @click="backToMap"
                 >
                     <ArrowLeft class="h-4 w-4" />
@@ -365,6 +400,8 @@ function continueAfterFeedback(): void {
                     :pending-label="formatPendingLabel"
                     :lockout-label="formatLockoutLabel"
                     :can-reset-tier="progress.canResetTier"
+                    :tier-reset-label="progress.tierResetLabel"
+                    :tier-reset-cost="(slug) => progress.tierResetFor(slug).cost"
                     :level-id="levelId"
                     :selected-id="selectedLevelId"
                     @select="selectLevel"
@@ -395,9 +432,28 @@ function continueAfterFeedback(): void {
                     <p class="mb-1 text-sm font-medium text-muted">
                         Di en voz alta:
                     </p>
-                    <h2 class="text-2xl font-bold text-heading">
-                        {{ currentQuestion.prompt }}
-                    </h2>
+                    <div class="flex items-start gap-3">
+                        <h2 class="flex-1 text-2xl font-bold text-heading">
+                            {{ currentQuestion.prompt }}
+                        </h2>
+                        <button
+                            type="button"
+                            class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-blue-600 transition-colors hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-900 dark:text-blue-400 dark:hover:border-blue-800 dark:hover:bg-blue-950/40"
+                            :title="promptSpeech.isSpeaking.value ? 'Detener audio' : 'Escuchar pronunciación'"
+                            :aria-label="promptSpeech.isSpeaking.value ? 'Detener audio' : 'Escuchar pronunciación'"
+                            :disabled="!promptSpeech.isSupported()"
+                            @click="togglePromptSpeech"
+                        >
+                            <Square
+                                v-if="promptSpeech.isSpeaking.value"
+                                class="h-4 w-4"
+                            />
+                            <Volume2
+                                v-else
+                                class="h-5 w-5"
+                            />
+                        </button>
+                    </div>
                     <p
                         v-if="currentQuestion.hint"
                         class="mt-3 rounded-lg bg-gray-50 p-3 text-sm text-body dark:bg-gray-800/60"
@@ -568,5 +624,4 @@ function continueAfterFeedback(): void {
                 </button>
             </div>
         </div>
-    </AppLayout>
 </template>

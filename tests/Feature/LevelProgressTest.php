@@ -16,6 +16,20 @@ class LevelProgressTest extends TestCase
 
     protected bool $seed = true;
 
+    private function completeTier(User $user, LevelProgressMode $mode, string $tier): void
+    {
+        $service = app(LevelProgressService::class);
+        $catalog = app(ChallengeCatalogService::class);
+
+        foreach ($service->levelIdsForTier($tier) as $levelId) {
+            $session = $service->ensureSessionQuestions($user, $mode, $levelId);
+
+            foreach ($session as $questionId) {
+                $service->recordQuestionPass($user, $mode, $levelId, $questionId);
+            }
+        }
+    }
+
     public function test_practice_page_includes_progress_from_database(): void
     {
         $learner = User::factory()->learner()->create();
@@ -26,6 +40,46 @@ class LevelProgressTest extends TestCase
                 ->component('Practice/Index')
                 ->has('progress.unlocked', 1)
                 ->where('progress.unlocked.0', 1));
+    }
+
+    public function test_world_page_shows_gate_when_locked(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 100]);
+
+        $this->actingAs($learner)->get('/world')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('World/Index')
+                ->where('world_access.unlocked', false)
+                ->where('world_access.unlock_cost', 300)
+                ->has('worlds', 3)
+                ->has('levels', 15));
+    }
+
+    public function test_learner_can_unlock_world_with_tokens(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 350]);
+
+        $this->actingAs($learner)
+            ->post('/world/unlock')
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $learner->refresh();
+        $this->assertNotNull($learner->world_unlocked_at);
+        $this->assertSame(50, $learner->tokens);
+    }
+
+    public function test_world_unlock_rejects_insufficient_tokens(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 50]);
+
+        $this->actingAs($learner)
+            ->post('/world/unlock')
+            ->assertRedirect()
+            ->assertSessionHasErrors('tokens');
+
+        $this->assertNull($learner->fresh()->world_unlocked_at);
     }
 
     public function test_passing_all_questions_completes_level(): void
@@ -109,41 +163,27 @@ class LevelProgressTest extends TestCase
 
     public function test_learner_can_reset_tier_progress(): void
     {
-        $learner = User::factory()->learner()->create();
+        $learner = User::factory()->learner()->create(['tokens' => 100]);
         $service = app(LevelProgressService::class);
-        $catalog = app(ChallengeCatalogService::class);
 
-        foreach ($catalog->questionIdsForLevel(LevelProgressMode::Speaking, 1) as $questionId) {
-            $service->recordQuestionPass($learner, LevelProgressMode::Speaking, 1, $questionId);
-        }
-
-        $service->recordQuestionPass(
-            $learner,
-            LevelProgressMode::Speaking,
-            2,
-            $catalog->questionIdsForLevel(LevelProgressMode::Speaking, 2)[0],
-        );
+        $this->completeTier($learner, LevelProgressMode::Speaking, 'basico');
 
         $this->actingAs($learner)
             ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('user_level_progress', [
-            'user_id' => $learner->id,
-            'mode' => 'speaking',
-            'level_id' => 1,
-        ]);
-
-        $this->assertDatabaseMissing('user_level_progress', [
-            'user_id' => $learner->id,
-            'mode' => 'speaking',
-            'level_id' => 2,
-        ]);
+        foreach ($service->levelIdsForTier('basico') as $levelId) {
+            $this->assertDatabaseMissing('user_level_progress', [
+                'user_id' => $learner->id,
+                'mode' => 'speaking',
+                'level_id' => $levelId,
+            ]);
+        }
     }
 
-    public function test_cannot_reset_tier_when_next_module_has_started(): void
+    public function test_cannot_reset_tier_before_all_sublevels_completed(): void
     {
-        $learner = User::factory()->learner()->create();
+        $learner = User::factory()->learner()->create(['tokens' => 100]);
         $service = app(LevelProgressService::class);
         $catalog = app(ChallengeCatalogService::class);
 
@@ -151,28 +191,109 @@ class LevelProgressTest extends TestCase
             $service->recordQuestionPass($learner, LevelProgressMode::Speaking, 1, $questionId);
         }
 
-        UserLevelProgress::query()->create([
-            'user_id' => $learner->id,
-            'mode' => LevelProgressMode::Speaking->value,
-            'level_id' => 6,
-            'correct_question_ids' => [
-                $catalog->questionIdsForLevel(LevelProgressMode::Speaking, 6)[0],
-            ],
-        ]);
-
         $this->assertFalse($service->canResetTier($learner, LevelProgressMode::Speaking, 'basico'));
-        $this->assertTrue($service->canResetTier($learner, LevelProgressMode::Speaking, 'intermedio'));
+
+        $this->actingAs($learner)
+            ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
+            ->assertRedirect()
+            ->assertSessionHasErrors('tier');
+    }
+
+    public function test_can_reset_tier_when_next_module_has_started_if_current_is_complete(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 100]);
+        $service = app(LevelProgressService::class);
+        $catalog = app(ChallengeCatalogService::class);
+
+        $this->completeTier($learner, LevelProgressMode::Speaking, 'basico');
+
+        $service->recordQuestionPass(
+            $learner,
+            LevelProgressMode::Speaking,
+            6,
+            $catalog->questionIdsForLevel(LevelProgressMode::Speaking, 6)[0],
+        );
+
+        $this->assertTrue($service->canResetTier($learner->fresh(), LevelProgressMode::Speaking, 'basico'));
+
+        $this->actingAs($learner)
+            ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+    }
+
+    public function test_reset_tier_spends_tokens_and_increments_count(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 100]);
+
+        $this->completeTier($learner, LevelProgressMode::Speaking, 'basico');
+
+        $this->actingAs($learner)
+            ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertSame(70, $learner->fresh()->tokens);
+        $this->assertDatabaseHas('user_tier_resets', [
+            'user_id' => $learner->id,
+            'mode' => 'speaking',
+            'tier' => 'basico',
+            'reset_count' => 1,
+        ]);
+    }
+
+    public function test_cannot_reset_tier_after_max_resets(): void
+    {
+        $learner = User::factory()->learner()->create(['tokens' => 200]);
+        $service = app(LevelProgressService::class);
+        $tierResets = app(\App\Services\TierResetService::class);
+
+        $this->completeTier($learner, LevelProgressMode::Speaking, 'basico');
+
+        for ($attempt = 0; $attempt < $tierResets->maxResets(); $attempt += 1) {
+            $this->actingAs($learner)
+                ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
+                ->assertRedirect();
+
+            $this->completeTier($learner->fresh(), LevelProgressMode::Speaking, 'basico');
+        }
+
+        $tokensBefore = $learner->fresh()->tokens;
+
+        $this->assertFalse($service->canResetTier($learner->fresh(), LevelProgressMode::Speaking, 'basico'));
 
         $this->actingAs($learner)
             ->post('/level-progress/speaking/reset-tier', ['tier' => 'basico'])
             ->assertRedirect()
             ->assertSessionHasErrors('tier');
 
-        $this->assertDatabaseHas('user_level_progress', [
-            'user_id' => $learner->id,
-            'mode' => 'speaking',
-            'level_id' => 1,
-        ]);
+        $this->assertSame($tokensBefore, $learner->fresh()->tokens);
+        $this->assertSame(
+            $tierResets->maxResets(),
+            $tierResets->getCount($learner->fresh(), LevelProgressMode::Speaking, 'basico'),
+        );
+    }
+
+    public function test_snapshot_includes_tier_resets(): void
+    {
+        $learner = User::factory()->learner()->create();
+        $service = app(LevelProgressService::class);
+
+        $snapshot = $service->snapshot($learner, LevelProgressMode::Speaking);
+
+        $this->assertArrayHasKey('tier_resets', $snapshot);
+        $this->assertSame(
+            ['count' => 0, 'max' => 2, 'cost' => 30],
+            $snapshot['tier_resets']['basico'],
+        );
+        $this->assertSame(
+            ['count' => 0, 'max' => 2, 'cost' => 30],
+            $snapshot['tier_resets']['intermedio'],
+        );
+        $this->assertSame(
+            ['count' => 0, 'max' => 2, 'cost' => 30],
+            $snapshot['tier_resets']['avanzado'],
+        );
     }
 
     public function test_each_level_has_nine_questions_in_pool(): void
@@ -249,5 +370,50 @@ class LevelProgressTest extends TestCase
 
         $this->assertTrue($service->isLockedOut($learner->fresh(), LevelProgressMode::Quiz, 1));
         $this->assertSame(5, $learner->fresh()->tokens);
+    }
+
+    public function test_completed_sublevel_review_returns_user_attempts_only(): void
+    {
+        $learner = User::factory()->learner()->create();
+
+        $this->actingAs($learner)
+            ->post('/level-progress/speaking/start-session', ['level_id' => 1])
+            ->assertRedirect();
+
+        $row = UserLevelProgress::query()->first();
+        $sessionIds = $row?->session_question_ids ?? [];
+
+        $this->assertCount(3, $sessionIds);
+
+        $this->actingAs($learner)
+            ->post('/level-progress/speaking/attempt', [
+                'level_id' => 1,
+                'question_id' => $sessionIds[0],
+                'is_correct' => false,
+                'response_text' => 'wrong answer',
+                'input_mode' => 'voice',
+            ])
+            ->assertRedirect();
+
+        foreach ($sessionIds as $questionId) {
+            $this->actingAs($learner)
+                ->post('/level-progress/speaking/question-pass', [
+                    'level_id' => 1,
+                    'question_id' => $questionId,
+                    'response_text' => 'correct answer',
+                    'input_mode' => 'voice',
+                ])
+                ->assertRedirect();
+        }
+
+        $this->actingAs($learner)
+            ->getJson('/level-progress/speaking/levels/1/review')
+            ->assertOk()
+            ->assertJsonPath('summary.total', 3)
+            ->assertJsonPath('summary.correct', 3)
+            ->assertJsonPath('summary.incorrect_attempts', 1)
+            ->assertJsonCount(3, 'questions')
+            ->assertJsonPath('questions.0.attempts.0.response_text', 'wrong answer')
+            ->assertJsonPath('questions.0.attempts.0.is_correct', false);
     }
 }

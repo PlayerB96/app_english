@@ -80,6 +80,40 @@ export interface LevelProgressState {
     question_progress: Record<string, LevelQuestionProgress>;
     answered_questions: Record<string, number[]>;
     session_questions: Record<string, number[]>;
+    tier_resets: Record<TierSlug, TierResetInfo>;
+}
+
+export interface TierResetInfo {
+    count: number;
+    max: number;
+    cost: number;
 }
 
 export type LevelProgressMode = "speaking" | "quiz";
+
+export interface SublevelAttemptReview {
+    response_text: string;
+    is_correct: boolean;
+    evaluated_at: string | null;
+}
+
+export interface SublevelQuestionReview {
+    question_id: number;
+    question_index: number;
+    step_difficulty: StepDifficulty;
+    prompt: string;
+    expected_translation?: string;
+    expected_answer?: string;
+    attempts: SublevelAttemptReview[];
+    final_correct: boolean;
+}
+
+export interface SublevelReview {
+    level_id: number;
+    questions: SublevelQuestionReview[];
+    summary: {
+        total: number;
+        correct: number;
+        incorrect_attempts: number;
+    };
+}

@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import PowerChip from "@/Components/PowerChip.vue";
 import SublevelIntensity from "@/Components/SublevelIntensity.vue";
 import { useLockoutCountdown } from "@/composables/useLockoutCountdown";
+import type { PageProps } from "@/types/auth";
 import type { TierInfo } from "@/types/levels";
 import { sublevelLabel } from "@/utils/learningLabels";
+import { powerRewardTitle } from "@/utils/powerLabels";
+import { usePage } from "@inertiajs/vue3";
 import { Check, Clock, Lock, RotateCcw, Star } from "@lucide/vue";
 import { computed } from "vue";
+
+const page = usePage<{ game: PageProps["game"] }>();
+const sublevelReward = computed(() => page.props.game.sublevel_complete_reward);
 
 const props = defineProps<{
     tiers: TierInfo[];
@@ -15,6 +22,8 @@ const props = defineProps<{
     isLockedOut?: (id: number) => boolean;
     lockoutLabel?: (id: number) => string | null;
     canResetTier?: (tier: TierInfo["slug"]) => boolean;
+    tierResetLabel?: (tier: TierInfo["slug"]) => string | null;
+    tierResetCost?: (tier: TierInfo["slug"]) => number;
     levelId: (tier: TierInfo["slug"], phase: number) => number;
     selectedId?: number | null;
 }>();
@@ -83,13 +92,13 @@ function handleSelect(
 </script>
 
 <template>
-    <div class="grid gap-6 lg:gap-8 xl:grid-cols-2 2xl:grid-cols-3">
+    <div class="grid gap-6 lg:gap-8 lg:grid-cols-1 xl:grid-cols-2">
         <article
             v-for="tier in tiers"
             :key="tier.slug"
-            class="surface-card p-5 lg:p-6"
+            class="surface-card min-w-0 p-5 lg:p-6 xl:min-w-[22rem]"
         >
-            <div class="mb-4 grid grid-cols-[minmax(0,1fr)_5.75rem] items-start gap-3">
+            <div class="mb-4 grid grid-cols-[minmax(0,1fr)_6.75rem] items-start gap-3">
                 <div class="min-w-0">
                     <h2 class="text-lg font-semibold text-heading">
                         {{ tier.name }}
@@ -102,29 +111,50 @@ function handleSelect(
                     </p>
                 </div>
 
-                <button
-                    v-if="canResetTier?.(tier.slug)"
-                    type="button"
-                    class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
-                    @click="emit('resetTier', tier)"
-                >
-                    <RotateCcw class="h-3.5 w-3.5" />
-                    Reiniciar
-                </button>
+                <div class="flex w-full shrink-0 flex-col items-stretch gap-1">
+                    <button
+                        v-if="canResetTier?.(tier.slug)"
+                        type="button"
+                        class="inline-flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+                        @click="emit('resetTier', tier)"
+                    >
+                        <span class="inline-flex items-center gap-1">
+                            <RotateCcw class="h-3.5 w-3.5 shrink-0" />
+                            Reiniciar
+                        </span>
+                        <span
+                            v-if="tierResetCost?.(tier.slug)"
+                            class="inline-flex items-center"
+                        >
+                            <PowerChip
+                                :amount="tierResetCost(tier.slug)"
+                                sign="−"
+                                size="md"
+                            />
+                        </span>
+                    </button>
+                    <p
+                        v-if="tierResetLabel?.(tier.slug)"
+                        class="text-center text-[10px] font-medium leading-tight text-muted"
+                    >
+                        {{ tierResetLabel(tier.slug) }}
+                    </p>
+                </div>
                 <div
-                    v-else
+                    v-if="!canResetTier?.(tier.slug) && !tierResetLabel?.(tier.slug)"
                     class="w-full"
                     aria-hidden="true"
                 />
             </div>
 
-            <div class="grid min-w-0 grid-cols-5 gap-1.5 sm:gap-2 lg:gap-3">
+            <div class="overflow-x-auto pb-1 sm:overflow-visible">
+                <div class="grid min-w-[29rem] grid-cols-[repeat(5,minmax(5.75rem,1fr))] gap-2 sm:min-w-0 sm:gap-2.5 lg:gap-3">
                 <button
                     v-for="phase in phases"
                     :key="`${tier.slug}-${phase}`"
                     type="button"
                     :aria-label="sublevelLabel(phase)"
-                    class="relative flex h-[7.25rem] min-w-0 w-full flex-col items-center justify-between rounded-xl border px-1 py-2 text-center transition-all sm:px-2 sm:py-2.5 lg:px-3"
+                    class="relative flex min-h-[8.5rem] min-w-[5.75rem] w-full flex-col items-center justify-between rounded-xl border px-1.5 py-2.5 text-center transition-all sm:px-2.5 sm:py-3 lg:px-3"
                     :title="
                         isCompleted(levelId(tier.slug, phase))
                             ? 'Ver respuestas correctas'
@@ -201,22 +231,38 @@ function handleSelect(
                             class="mt-1.5"
                             :intensity="phase"
                         />
+
+                        <PowerChip
+                            v-if="!isCompleted(levelId(tier.slug, phase))"
+                            class="mt-1"
+                            :amount="sublevelReward"
+                            sign="+"
+                            :title="powerRewardTitle(sublevelReward)"
+                        />
                     </div>
 
                     <div
-                        class="flex h-8 w-full shrink-0 items-center justify-center px-0.5 text-center text-[10px] leading-tight"
+                        class="flex min-h-[2.25rem] w-full shrink-0 items-center justify-center px-0.5 text-center text-[10px] leading-tight sm:text-[11px]"
                     >
                         <span
                             v-if="isPending?.(levelId(tier.slug, phase)) && pendingLabel?.(levelId(tier.slug, phase))"
-                            class="font-medium text-amber-700 dark:text-amber-300"
+                            class="flex flex-col items-center gap-0.5 font-medium text-amber-700 dark:text-amber-300"
                         >
-                            Pendiente · {{ pendingLabel(levelId(tier.slug, phase)) }}
+                            <span>Pendiente</span>
+                            <span>{{ pendingLabel(levelId(tier.slug, phase)) }}</span>
                         </span>
                         <span
                             v-else-if="isLockedOut?.(levelId(tier.slug, phase)) && displayLockoutLabel(levelId(tier.slug, phase))"
-                            class="font-medium text-amber-700 dark:text-amber-300"
+                            class="flex flex-col items-center gap-0.5 font-medium text-amber-700 dark:text-amber-300"
                         >
-                            En pausa · {{ displayLockoutLabel(levelId(tier.slug, phase)) }}
+                            <span>En pausa</span>
+                            <span>{{ displayLockoutLabel(levelId(tier.slug, phase)) }}</span>
+                        </span>
+                        <span
+                            v-else-if="isCompleted(levelId(tier.slug, phase))"
+                            class="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80"
+                        >
+                            Completado
                         </span>
                         <span
                             v-else
@@ -227,6 +273,7 @@ function handleSelect(
                         </span>
                     </div>
                 </button>
+                </div>
             </div>
         </article>
     </div>

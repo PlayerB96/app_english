@@ -4,7 +4,8 @@ import {
     formatLockoutUnlockAt,
 } from "@/utils/formatLockout";
 import { gameSwalTheme } from "@/utils/swalGameTheme";
-import { lucideIconHtml } from "@/utils/lucideIconHtml";
+import { lucideIconHtml, powerIconHtml } from "@/utils/lucideIconHtml";
+import { POWER_UNIT } from "@/utils/powerLabels";
 import Swal from "sweetalert2";
 
 const COUNTDOWN_ID = "lockout-countdown";
@@ -87,7 +88,7 @@ function skipActionHtml(
                 style="${actionCardStyle(theme, "skip")}"
             >
                 <span style="${actionLabelStyle(theme, "skip")}">Saltar</span>
-                ${lucideIconHtml("zap", 18, theme.powerUpText)}
+                ${powerIconHtml(18, theme.powerUpText)}
                 <span style="
                     font-size:0.6875rem;font-weight:700;padding:0.125rem 0.4375rem;border-radius:0.25rem;
                     background:${theme.powerUpChipBg};color:${theme.powerUpText};
@@ -99,7 +100,7 @@ function skipActionHtml(
     return `
         <div style="${actionCardStyle(theme, "skip-disabled")}">
             <span style="${actionLabelStyle(theme, "skip-disabled")}">Saltar</span>
-            ${lucideIconHtml("zap", 18, theme.powerUpDisabledText)}
+            ${powerIconHtml(18, theme.powerUpDisabledText)}
             <span style="font-size:0.6875rem;font-weight:600;">−${skipCost}</span>
         </div>
     `;
@@ -160,13 +161,13 @@ function lockoutModalHtml(
                 background:${theme.footerBg};border:1px solid ${theme.footerBorder};
                 font-size:0.6875rem;color:${theme.muted};
             ">
-                <span>Saldo <strong style="color:${theme.color};">${tokens}</strong> tokens</span>
+                <span>Saldo <strong style="color:${theme.color};">${tokens}</strong> ${POWER_UNIT}</span>
                 <span>Auto <strong style="color:${theme.color};">${unlockAt}</strong></span>
             </div>
 
             ${canAfford ? "" : `
                 <p style="margin:0.625rem 0 0;font-size:0.6875rem;text-align:center;color:${theme.powerUpDisabledText};">
-                    Faltan ${skipCost - tokens} tokens para saltar
+                    Faltan ${skipCost - tokens} ${POWER_UNIT} para saltar
                 </p>
             `}
         </div>
@@ -186,7 +187,7 @@ function skipProcessingHtml(
                 Activando power-up
             </p>
             <p style="margin:0;font-size:0.8125rem;color:${theme.muted};">
-                −${skipCost} tokens
+                −${skipCost} ${POWER_UNIT}
             </p>
         </div>
     `;
@@ -229,7 +230,7 @@ function unlockSuccessHtml(
                             class="lockout-token-value"
                             style="color:${theme.powerUpText};"
                         >${tokens}</span>
-                        <span class="lockout-token-label" style="color:${theme.muted};">tokens</span>
+                        <span class="lockout-token-label" style="color:${theme.muted};">${POWER_UNIT}</span>
                     </div>
                     <span
                         id="${TOKEN_DELTA_ID}"

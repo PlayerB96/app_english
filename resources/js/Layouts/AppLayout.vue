@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import AppFlash from "@/Components/AppFlash.vue";
+import MobileSideNav from "@/Components/MobileSideNav.vue";
+import PowerIcon from "@/Components/PowerIcon.vue";
 import ThemeToggle from "@/Components/ThemeToggle.vue";
 import { useAutoHideHeader } from "@/composables/useAutoHideHeader";
 import { useAppStore } from "@/Stores/useAppStore";
@@ -7,16 +9,17 @@ import { Link, usePage } from "@inertiajs/vue3";
 import {
     BarChart3,
     BookOpen,
+    Globe,
     LayoutDashboard,
     LogOut,
     Menu,
     Mic,
     Users,
-    X,
 } from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import type { PageProps } from "@/types/auth";
 import { roleLabel } from "@/types/auth";
+import { powerBalanceLabel } from "@/utils/powerLabels";
 
 const page = usePage<{ auth: PageProps["auth"]; url: string }>();
 const appStore = useAppStore();
@@ -26,15 +29,15 @@ const isAdmin = computed(() => user.value?.role === "administrator");
 
 const topBarRef = ref<HTMLElement | null>(null);
 const desktopNavRef = ref<HTMLElement | null>(null);
-const mobileNavRef = ref<HTMLElement | null>(null);
 
 const { isVisible: isTopBarVisible, topBarHeight, show, updateTopBarHeight } =
     useAutoHideHeader(topBarRef, {
-        forceVisible: () => appStore.isNavOpen,
+        forceVisible: () => appStore.isNavOpen || isAdmin.value,
     });
 
-const desktopNavHeight = ref(0);
-const mobileNavHeight = ref(0);
+const desktopNavHeight = ref(56);
+
+const WORLD_HREF = "/world";
 
 interface NavItem {
     label: string;
@@ -46,6 +49,7 @@ const learnerNav: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Práctica", href: "/practice", icon: Mic },
     { label: "Tracks", href: "/tracks", icon: BookOpen },
+    { label: "Mundos", href: WORLD_HREF, icon: Globe },
 ];
 
 const adminNav: NavItem[] = [
@@ -59,15 +63,28 @@ const visibleNavItems = computed(() =>
     isAdmin.value ? adminNav : learnerNav,
 );
 
+const desktopRegularNavItems = computed(() => {
+    if (isAdmin.value) {
+        return visibleNavItems.value;
+    }
+
+    return visibleNavItems.value.filter((item) => item.href !== WORLD_HREF);
+});
+
+const worldNavItem = computed(() => {
+    if (isAdmin.value) {
+        return null;
+    }
+
+    return visibleNavItems.value.find((item) => item.href === WORLD_HREF) ?? null;
+});
+
 const homeHref = computed(() =>
     isAdmin.value ? "/admin" : "/dashboard",
 );
 
 function measureNavHeights(): void {
     desktopNavHeight.value = desktopNavRef.value?.offsetHeight ?? 0;
-    mobileNavHeight.value = appStore.isNavOpen
-        ? (mobileNavRef.value?.offsetHeight ?? 0)
-        : 0;
     updateTopBarHeight();
 }
 
@@ -77,10 +94,8 @@ const headerOffset = computed(() => {
     }
 
     const top = isTopBarVisible.value ? topBarHeight.value : 0;
-    const desktopNav = desktopNavHeight.value;
-    const mobileNav = mobileNavHeight.value;
 
-    return top + Math.max(desktopNav, mobileNav);
+    return top + desktopNavHeight.value;
 });
 
 const mainPaddingTop = computed(() => {
@@ -106,15 +121,11 @@ function closeNav(): void {
 watch(
     () => page.url,
     () => {
-        show();
-        window.scrollTo({ top: 0 });
-    },
-);
+        if (!isAdmin.value) {
+            show();
+        }
 
-watch(
-    () => appStore.isNavOpen,
-    () => {
-        measureNavHeights();
+        closeNav();
     },
 );
 
@@ -147,11 +158,12 @@ onMounted(() => {
         >
             <div
                 class="app-header-top overflow-hidden"
-                :class="{ 'pointer-events-none': !isTopBarVisible }"
+                :class="{
+                    'pointer-events-none app-header-top-collapsed': !isTopBarVisible,
+                }"
                 :style="{
                     maxHeight: isTopBarVisible ? `${topBarHeight}px` : '0px',
                     minHeight: '0px',
-                    opacity: isTopBarVisible ? 1 : 0,
                 }"
             >
                 <div
@@ -163,10 +175,10 @@ onMounted(() => {
                             type="button"
                             class="btn-theme h-8 w-8 md:hidden"
                             aria-label="Abrir menú"
+                            :aria-expanded="appStore.isNavOpen"
                             @click="appStore.toggleNav()"
                         >
-                            <Menu v-if="!appStore.isNavOpen" class="h-4 w-4" />
-                            <X v-else class="h-4 w-4" />
+                            <Menu class="h-4 w-4" />
                         </button>
 
                         <Link
@@ -178,23 +190,29 @@ onMounted(() => {
                     </div>
 
                     <div class="header-actions">
-                        <div class="header-utilities">
+                        <div
+                            class="header-utilities"
+                            :class="{ 'hidden md:flex': isAdmin }"
+                        >
                             <span
                                 v-if="!isAdmin"
-                                class="header-token-badge"
-                                :title="`${user.tokens ?? 0} tokens disponibles`"
+                                class="header-power-badge"
+                                :title="`${powerBalanceLabel(user.tokens ?? 0)} disponible`"
                             >
+                                <PowerIcon size-class="h-3.5 w-3.5" />
                                 <span>{{ user.tokens ?? 0 }}</span>
-                                <span class="hidden md:inline">Tokens</span>
+                                <span class="capitalize">poder</span>
                             </span>
 
                             <span
                                 v-if="!isAdmin"
-                                class="header-utilities-divider"
+                                class="header-utilities-divider hidden md:block"
                                 aria-hidden="true"
                             />
 
-                            <ThemeToggle />
+                            <span class="hidden md:inline-flex">
+                                <ThemeToggle />
+                            </span>
                         </div>
 
                         <span
@@ -234,7 +252,7 @@ onMounted(() => {
             >
                 <div class="app-container flex gap-1 py-2">
                     <Link
-                        v-for="item in visibleNavItems"
+                        v-for="item in desktopRegularNavItems"
                         :key="item.href"
                         :href="item.href"
                         class="nav-link"
@@ -243,47 +261,30 @@ onMounted(() => {
                         <component :is="item.icon" class="h-4 w-4" />
                         {{ item.label }}
                     </Link>
-                </div>
-            </nav>
 
-            <nav
-                v-if="appStore.isNavOpen"
-                ref="mobileNavRef"
-                class="app-header-nav border-t border-gray-100 dark:border-gray-800 md:hidden"
-                aria-label="Navegación móvil"
-            >
-                <div class="header-mobile-user">
-                    <p class="truncate text-sm font-medium text-heading">
-                        {{ user.name }}
-                    </p>
-                    <div class="mt-1 flex flex-wrap items-center gap-2">
-                        <span class="badge-role">
-                            {{ roleLabel(user.role) }}
-                        </span>
-                        <span
-                            v-if="!isAdmin && user.tokens !== undefined"
-                            class="text-xs font-semibold text-amber-700 dark:text-amber-300"
-                        >
-                            {{ user.tokens }} tokens
-                        </span>
-                    </div>
-                </div>
-
-                <div class="app-container flex flex-col gap-0.5 px-3 py-2 sm:px-6">
                     <Link
-                        v-for="item in visibleNavItems"
-                        :key="item.href"
-                        :href="item.href"
-                        class="nav-link nav-link-mobile"
-                        :class="isActive(item.href) ? 'nav-link-active' : 'nav-link-idle'"
-                        @click="closeNav"
+                        v-if="worldNavItem"
+                        :href="worldNavItem.href"
+                        class="nav-link app-header-nav-world"
+                        :class="isActive(worldNavItem.href) ? 'nav-link-active' : 'nav-link-idle'"
                     >
-                        <component :is="item.icon" class="h-4 w-4 shrink-0" />
-                        {{ item.label }}
+                        <PowerIcon
+                            size-class="h-4 w-4"
+                            animated
+                        />
+                        {{ worldNavItem.label }}
                     </Link>
                 </div>
             </nav>
         </header>
+
+        <MobileSideNav
+            v-if="user"
+            :user="user"
+            :is-admin="isAdmin"
+            :nav-items="visibleNavItems"
+            :home-href="homeHref"
+        />
 
         <main
             class="pb-4 md:pb-6 lg:pb-8"

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminTrackRow } from "@/types/admin";
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
@@ -54,8 +53,7 @@ function toggleActive(track: AdminTrackRow): void {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div>
                 <h1 class="text-2xl font-bold text-heading">
                     Gestión de tracks
@@ -155,5 +153,4 @@ function toggleActive(track: AdminTrackRow): void {
                 </article>
             </div>
         </div>
-    </AppLayout>
 </template>

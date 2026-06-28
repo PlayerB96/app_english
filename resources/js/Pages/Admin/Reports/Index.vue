@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminTrackReport } from "@/types/admin";
 
 defineProps<{
@@ -8,8 +7,7 @@ defineProps<{
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div>
                 <h1 class="text-2xl font-bold text-heading">
                     Reportes por track
@@ -51,5 +49,4 @@ defineProps<{
                 </article>
             </div>
         </div>
-    </AppLayout>
 </template>

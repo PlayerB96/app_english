@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Enums\LevelProgressMode;
+use App\Models\Answer;
+use App\Models\LearningTrack;
+use App\Models\ProgressSnapshot;
 use App\Models\User;
 use App\Models\UserLevelProgress;
 use Illuminate\Support\Carbon;
@@ -17,6 +20,7 @@ class LevelProgressService
 
     public function __construct(
         private readonly ChallengeCatalogService $catalog,
+        private readonly TierResetService $tierResets,
     ) {}
 
     public function questionsPerLevel(): int
@@ -98,7 +102,8 @@ class LevelProgressService
      *     lockouts: array<string, string>,
      *     question_progress: array<string, array{correct: int, total: int}>,
      *     answered_questions: array<string, list<int>>,
-     *     session_questions: array<string, list<int>>
+     *     session_questions: array<string, list<int>>,
+     *     tier_resets: array<string, array{count: int, max: int, cost: int}>
      * }
      */
     public function snapshot(User $user, LevelProgressMode $mode): array
@@ -170,6 +175,7 @@ class LevelProgressService
             'question_progress' => $questionProgress,
             'answered_questions' => $answeredQuestions,
             'session_questions' => $sessionQuestions,
+            'tier_resets' => $this->tierResets->snapshot($user, $mode),
         ];
     }
 
@@ -219,7 +225,6 @@ class LevelProgressService
         if (count($answered) >= $required) {
             $row->completed_at = now();
             $row->locked_until = null;
-            $row->session_question_ids = null;
         }
 
         $row->save();
@@ -309,9 +314,15 @@ class LevelProgressService
 
     public function resetTier(User $user, LevelProgressMode $mode, string $tier): void
     {
-        if (! $this->canResetTier($user, $mode, $tier)) {
+        if (! $this->isTierFullyCompleted($user, $mode, $tier)) {
             throw new InvalidArgumentException(
-                'No puedes reiniciar este módulo porque ya comenzaste el siguiente.',
+                'Debes completar los 5 subniveles del módulo antes de reiniciarlo.',
+            );
+        }
+
+        if (! $this->tierResets->hasResetsRemaining($user, $mode, $tier)) {
+            throw new InvalidArgumentException(
+                'Ya alcanzaste el máximo de reinicios para este módulo.',
             );
         }
 
@@ -322,19 +333,24 @@ class LevelProgressService
             ->delete();
     }
 
+    public function isTierFullyCompleted(User $user, LevelProgressMode $mode, string $tier): bool
+    {
+        foreach ($this->levelIdsForTier($tier) as $levelId) {
+            if (! $this->isCompleted($user, $mode, $levelId)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function canResetTier(User $user, LevelProgressMode $mode, string $tier): bool
     {
-        if (! $this->hasTierProgress($user, $mode, $tier)) {
+        if (! $this->isTierFullyCompleted($user, $mode, $tier)) {
             return false;
         }
 
-        $nextTier = $this->nextTier($tier);
-
-        if ($nextTier === null) {
-            return true;
-        }
-
-        return ! $this->hasTierProgress($user, $mode, $nextTier);
+        return $this->tierResets->hasResetsRemaining($user, $mode, $tier);
     }
 
     public function hasTierProgress(User $user, LevelProgressMode $mode, string $tier): bool
@@ -416,6 +432,150 @@ class LevelProgressService
         $row = $rows->firstWhere('level_id', $levelId);
 
         return $row?->locked_until !== null && $row->locked_until->isFuture();
+    }
+
+    /**
+     * @return array{
+     *     level_id: int,
+     *     questions: list<array<string, mixed>>,
+     *     summary: array{total: int, correct: int, incorrect_attempts: int}
+     * }
+     */
+    public function sublevelReview(User $user, LevelProgressMode $mode, int $levelId): array
+    {
+        $this->assertValidLevelId($levelId);
+
+        if (! $this->isCompleted($user, $mode, $levelId)) {
+            throw new InvalidArgumentException('El subnivel no está completado.');
+        }
+
+        $row = UserLevelProgress::query()
+            ->where('user_id', $user->id)
+            ->where('mode', $mode->value)
+            ->where('level_id', $levelId)
+            ->first();
+
+        if ($row === null) {
+            throw new InvalidArgumentException('No se encontró progreso del subnivel.');
+        }
+
+        /** @var list<int> $sessionQuestionIds */
+        $sessionQuestionIds = array_values(array_map(
+            'intval',
+            $row->session_question_ids ?? $row->correct_question_ids ?? [],
+        ));
+
+        if ($sessionQuestionIds === []) {
+            throw new InvalidArgumentException('No hay preguntas registradas para este subnivel.');
+        }
+
+        $trackSlug = $mode === LevelProgressMode::Speaking
+            ? config('learning.tracks.speaking.slug')
+            : config('learning.tracks.quiz.slug');
+
+        $trackId = LearningTrack::query()->where('slug', $trackSlug)->value('id');
+
+        $snapshot = ProgressSnapshot::query()
+            ->where('user_id', $user->id)
+            ->where('learning_track_id', $trackId)
+            ->where('metadata->mode', $mode->value)
+            ->where('metadata->level_id', $levelId)
+            ->latest('snapshot_at')
+            ->first();
+
+        $answersQuery = Answer::query()
+            ->where('user_id', $user->id)
+            ->whereIn('question_id', $sessionQuestionIds);
+
+        if ($snapshot !== null) {
+            $answersQuery->where('practice_session_id', $snapshot->practice_session_id);
+        }
+
+        $answers = $answersQuery->orderBy('evaluated_at')->get();
+
+        if ($answers->isEmpty()) {
+            $anchor = Answer::query()
+                ->where('user_id', $user->id)
+                ->whereIn('question_id', $sessionQuestionIds)
+                ->where('is_correct', true)
+                ->latest('evaluated_at')
+                ->first();
+
+            if ($anchor !== null) {
+                $answers = Answer::query()
+                    ->where('practice_session_id', $anchor->practice_session_id)
+                    ->whereIn('question_id', $sessionQuestionIds)
+                    ->orderBy('evaluated_at')
+                    ->get();
+            }
+        }
+
+        $questions = [];
+        $incorrectAttempts = 0;
+        $finalCorrectCount = 0;
+
+        foreach ($sessionQuestionIds as $questionId) {
+            $serialized = $this->catalog->questionById($mode, $questionId);
+
+            if ($serialized === null) {
+                continue;
+            }
+
+            $questionAttempts = $answers
+                ->where('question_id', $questionId)
+                ->values()
+                ->map(fn (Answer $answer) => [
+                    'response_text' => $answer->response_text,
+                    'is_correct' => $answer->is_correct,
+                    'evaluated_at' => $answer->evaluated_at?->toIso8601String(),
+                ])
+                ->all();
+
+            $finalCorrect = $questionAttempts !== []
+                && (bool) collect($questionAttempts)->last()['is_correct'];
+
+            if ($finalCorrect) {
+                $finalCorrectCount++;
+            }
+
+            $incorrectAttempts += collect($questionAttempts)
+                ->where('is_correct', false)
+                ->count();
+
+            $item = [
+                'question_id' => $questionId,
+                'question_index' => $serialized['question_index'],
+                'step_difficulty' => $serialized['step_difficulty'],
+                'prompt' => $serialized['prompt'],
+                'attempts' => $questionAttempts,
+                'final_correct' => $finalCorrect,
+            ];
+
+            if ($mode === LevelProgressMode::Speaking) {
+                $item['expected_translation'] = $serialized['expected_translation'] ?? '';
+            } else {
+                $options = $serialized['options'] ?? [];
+                $correctIndex = (int) ($serialized['correct_index'] ?? 0);
+                $item['expected_answer'] = $options[$correctIndex] ?? '';
+            }
+
+            $questions[] = $item;
+        }
+
+        usort(
+            $questions,
+            fn (array $left, array $right) => $left['question_index'] <=> $right['question_index'],
+        );
+
+        return [
+            'level_id' => $levelId,
+            'questions' => $questions,
+            'summary' => [
+                'total' => count($questions),
+                'correct' => $finalCorrectCount,
+                'incorrect_attempts' => $incorrectAttempts,
+            ],
+        ];
     }
 
     /**

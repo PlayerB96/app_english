@@ -6,3 +6,5 @@ export type SpeechRecognitionStatus =
     | "unsupported";
 
 export type SpeechCapturePhase = "idle" | "ready";
+
+export type SpeechSynthesisStatus = "idle" | "speaking" | "unsupported";

@@ -12,7 +12,8 @@ export function useAutoHideHeader(
     },
 ) {
     const isVisible = ref(true);
-    const topBarHeight = ref(0);
+    /** Altura estimada del top bar hasta el primer measure (evita salto de padding). */
+    const topBarHeight = ref(56);
 
     let lastScrollY = 0;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;

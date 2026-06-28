@@ -103,11 +103,11 @@ const showcases = [
         eyebrow: "Mapa de niveles",
         title: "Desbloquea fases como en un videojuego",
         description:
-            "Cada subnivel aprobado abre el siguiente. Si fallas, espera el cooldown o usa tokens para saltar y seguir practicando.",
+            "Cada subnivel aprobado abre el siguiente. Si fallas, espera el cooldown o usa poder para saltar y seguir practicando.",
         bullets: [
             "15 subniveles progresivos",
             "Bloqueos con temporizador",
-            "Power-ups con tokens",
+            "Power-ups con poder",
         ],
         src: "/videos/welcome/video3.mp4",
         reverse: false,

@@ -3,7 +3,7 @@
 /**
  * Rutas protegidas (requieren sesión autenticada):
  * - POST /logout
- * - GET  /dashboard, /practice, /tracks (learner)
+ * - GET  /dashboard, /practice, /tracks, /world (learner)
  *
  * Rutas con rol administrador (auth + middleware role:administrator):
  * - GET  /admin, /admin/users, /admin/tracks, /admin/reports
@@ -19,6 +19,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\LevelProgressController;
 use App\Http\Controllers\MockPageController;
+use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -94,6 +95,13 @@ Route::middleware('auth')->group(function () {
             ->name('practice.index');
         Route::get('/tracks', [MockPageController::class, 'tracks'])
             ->name('tracks.index');
+        Route::get('/world', [WorldController::class, 'index'])
+            ->name('world.index');
+        Route::post('/world/unlock', [WorldController::class, 'unlock'])
+            ->name('world.unlock');
+        Route::post('/world/levels/{level}/complete', [WorldController::class, 'complete'])
+            ->whereNumber('level')
+            ->name('world.levels.complete');
 
         Route::post('/level-progress/{mode}/pass', [LevelProgressController::class, 'pass'])
             ->whereIn('mode', ['speaking', 'quiz'])
@@ -119,6 +127,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/level-progress/{mode}/skip-lockout', [LevelProgressController::class, 'skipLockout'])
             ->whereIn('mode', ['speaking', 'quiz'])
             ->name('level-progress.skip-lockout');
+        Route::get('/level-progress/{mode}/levels/{levelId}/review', [LevelProgressController::class, 'review'])
+            ->whereIn('mode', ['speaking', 'quiz'])
+            ->whereNumber('levelId')
+            ->name('level-progress.review');
     });
 
     Route::middleware(['verified', 'role:administrator'])->prefix('admin')->group(function () {

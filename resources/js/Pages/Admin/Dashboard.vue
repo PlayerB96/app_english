@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import KpiCard from "@/Components/KpiCard.vue";
-import AppLayout from "@/Layouts/AppLayout.vue";
 import type { AdminDashboardData } from "@/types/admin";
 import { Link } from "@inertiajs/vue3";
 import { BarChart3, BookOpen, CheckCircle2, Users } from "@lucide/vue";
@@ -28,8 +27,7 @@ function formatDate(iso: string | null): string {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div>
                 <h1 class="text-2xl font-bold text-heading">
                     Panel de administración
@@ -143,5 +141,4 @@ function formatDate(iso: string | null): string {
                 </div>
             </div>
         </div>
-    </AppLayout>
 </template>

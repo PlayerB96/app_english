@@ -2,6 +2,7 @@ import type {
     LevelProgressMode,
     LevelProgressState,
     LevelQuestionProgress,
+    TierResetInfo,
     TierSlug,
 } from "@/types/levels";
 import { router } from "@inertiajs/vue3";
@@ -10,6 +11,26 @@ import { computed, ref, toValue, watch, type MaybeRef } from "vue";
 const TIER_ORDER: TierSlug[] = ["basico", "intermedio", "avanzado"];
 const PHASES_PER_TIER = 5;
 const TOTAL_LEVELS = TIER_ORDER.length * PHASES_PER_TIER;
+
+const DEFAULT_TIER_RESETS: Record<TierSlug, TierResetInfo> = {
+    basico: { count: 0, max: 2, cost: 30 },
+    intermedio: { count: 0, max: 2, cost: 30 },
+    avanzado: { count: 0, max: 2, cost: 30 },
+};
+
+function normalizeTierResets(
+    tierResets: LevelProgressState["tier_resets"] | undefined,
+): Record<TierSlug, TierResetInfo> {
+    if (!tierResets) {
+        return { ...DEFAULT_TIER_RESETS };
+    }
+
+    return {
+        basico: tierResets.basico ?? DEFAULT_TIER_RESETS.basico,
+        intermedio: tierResets.intermedio ?? DEFAULT_TIER_RESETS.intermedio,
+        avanzado: tierResets.avanzado ?? DEFAULT_TIER_RESETS.avanzado,
+    };
+}
 
 export function levelId(tier: TierSlug, phase: number): number {
     const tierIndex = TIER_ORDER.indexOf(tier);
@@ -40,6 +61,7 @@ function cloneState(state: LevelProgressState): LevelProgressState {
         question_progress: { ...state.question_progress },
         answered_questions: { ...state.answered_questions ?? {} },
         session_questions: { ...state.session_questions ?? {} },
+        tier_resets: normalizeTierResets(state.tier_resets),
     };
 }
 
@@ -50,6 +72,7 @@ function syncState(
     questionProgress: { value: Record<string, LevelQuestionProgress> },
     answeredQuestions: { value: Record<string, number[]> },
     sessionQuestions: { value: Record<string, number[]> },
+    tierResets: { value: Record<TierSlug, TierResetInfo> },
     source: LevelProgressState,
 ): void {
     unlocked.value = [...source.unlocked];
@@ -58,6 +81,7 @@ function syncState(
     questionProgress.value = { ...source.question_progress };
     answeredQuestions.value = { ...source.answered_questions };
     sessionQuestions.value = { ...source.session_questions ?? {} };
+    tierResets.value = normalizeTierResets(source.tier_resets);
 }
 
 export function useLevelProgress(
@@ -77,16 +101,29 @@ export function useLevelProgress(
     const sessionQuestions = ref<Record<string, number[]>>({
         ...(source.session_questions ?? {}),
     });
+    const tierResets = ref<Record<TierSlug, TierResetInfo>>(
+        normalizeTierResets(source.tier_resets),
+    );
     const syncing = ref(false);
 
     watch(
         () => toValue(initial),
-        (value) => syncState(unlocked, completed, lockouts, questionProgress, answeredQuestions, sessionQuestions, {
-            ...value,
-            question_progress: value.question_progress ?? {},
-            answered_questions: value.answered_questions ?? {},
-            session_questions: value.session_questions ?? {},
-        }),
+        (value) => syncState(
+            unlocked,
+            completed,
+            lockouts,
+            questionProgress,
+            answeredQuestions,
+            sessionQuestions,
+            tierResets,
+            {
+                ...value,
+                question_progress: value.question_progress ?? {},
+                answered_questions: value.answered_questions ?? {},
+                session_questions: value.session_questions ?? {},
+                tier_resets: value.tier_resets,
+            },
+        ),
         { deep: true },
     );
 
@@ -98,6 +135,7 @@ export function useLevelProgress(
             question_progress: { ...questionProgress.value },
             answered_questions: { ...answeredQuestions.value },
             session_questions: { ...sessionQuestions.value },
+            tier_resets: normalizeTierResets(tierResets.value),
         };
     }
 
@@ -154,7 +192,7 @@ export function useLevelProgress(
     function reloadProgress(): Promise<void> {
         return new Promise((resolve) => {
             router.reload({
-                only: ["progress"],
+                only: ["progress", "auth"],
                 onFinish: () => resolve(),
             });
         });
@@ -181,11 +219,13 @@ export function useLevelProgress(
                                 questionProgress,
                                 answeredQuestions,
                                 sessionQuestions,
+                                tierResets,
                                 {
                                     ...progress,
                                     question_progress: progress.question_progress ?? {},
                                     answered_questions: progress.answered_questions ?? {},
                                     session_questions: progress.session_questions ?? {},
+                                    tier_resets: progress.tier_resets,
                                 },
                             );
                         }
@@ -269,6 +309,7 @@ export function useLevelProgress(
                             questionProgress,
                             answeredQuestions,
                             sessionQuestions,
+                            tierResets,
                             previous,
                         ),
                     onFinish: () => {
@@ -323,6 +364,7 @@ export function useLevelProgress(
                             questionProgress,
                             answeredQuestions,
                             sessionQuestions,
+                            tierResets,
                             previous,
                         ),
                     onFinish: () => {
@@ -384,6 +426,7 @@ export function useLevelProgress(
                             questionProgress,
                             answeredQuestions,
                             sessionQuestions,
+                            tierResets,
                             previous,
                         );
                         reject(new Error("skip_lockout_failed"));
@@ -409,33 +452,46 @@ export function useLevelProgress(
         return levelIdsForTier(tier).some((id) => hasProgress(id));
     }
 
-    function nextTier(tier: TierSlug): TierSlug | null {
-        const index = TIER_ORDER.indexOf(tier);
+    function tierResetFor(tier: TierSlug): TierResetInfo {
+        return tierResets.value[tier] ?? DEFAULT_TIER_RESETS[tier];
+    }
 
-        if (index < 0 || index >= TIER_ORDER.length - 1) {
+    function isTierFullyCompleted(tier: TierSlug): boolean {
+        return levelIdsForTier(tier).every((id) => isCompleted(id));
+    }
+
+    function tierResetLabel(tier: TierSlug): string | null {
+        const info = tierResetFor(tier);
+
+        if (!isTierFullyCompleted(tier) && info.count === 0) {
             return null;
         }
 
-        return TIER_ORDER[index + 1];
+        if (info.count >= info.max && !isTierFullyCompleted(tier)) {
+            return null;
+        }
+
+        if (isTierFullyCompleted(tier) || info.count > 0) {
+            return `Reinicios: ${info.count}/${info.max}`;
+        }
+
+        return null;
     }
 
     function canResetTier(tier: TierSlug): boolean {
-        if (!hasTierProgress(tier)) {
+        if (!isTierFullyCompleted(tier)) {
             return false;
         }
 
-        const next = nextTier(tier);
+        const info = tierResetFor(tier);
 
-        if (!next) {
-            return true;
-        }
-
-        return !hasTierProgress(next);
+        return info.count < info.max;
     }
 
     function resetTier(tier: TierSlug): Promise<void> {
         const previous = cloneState(currentSnapshot());
         const ids = levelIdsForTier(tier);
+        const resetInfo = tierResetFor(tier);
         syncing.value = true;
 
         completed.value = completed.value.filter((id) => !ids.includes(id));
@@ -447,6 +503,14 @@ export function useLevelProgress(
             delete answeredQuestions.value[key];
             delete sessionQuestions.value[key];
         }
+
+        tierResets.value = {
+            ...tierResets.value,
+            [tier]: {
+                ...resetInfo,
+                count: Math.min(resetInfo.count + 1, resetInfo.max),
+            },
+        };
 
         return new Promise((resolve) => {
             router.post(
@@ -463,6 +527,7 @@ export function useLevelProgress(
                             questionProgress,
                             answeredQuestions,
                             sessionQuestions,
+                            tierResets,
                             previous,
                         ),
                     onFinish: () => {
@@ -517,6 +582,9 @@ export function useLevelProgress(
         lockoutRemaining,
         hasProgress,
         hasTierProgress,
+        isTierFullyCompleted,
+        tierResetFor,
+        tierResetLabel,
         canResetTier,
         markQuestionPassed,
         startSession,
@@ -568,6 +636,8 @@ function levenshteinDistance(a: string, b: string): number {
     return matrix[a.length][b.length];
 }
 
+export const SPEAKING_PASS_SCORE_MIN = 95;
+
 export function scoreSpokenPhrase(spoken: string, expected: string): number {
     const a = normalizeText(spoken);
     const b = normalizeText(expected);
@@ -606,40 +676,7 @@ export function scoreSpokenPhrase(spoken: string, expected: string): number {
 }
 
 export function compareSpokenPhrase(spoken: string, expected: string): boolean {
-    const a = normalizeText(spoken);
-    const b = normalizeText(expected);
-
-    if (!a || !b) {
-        return false;
-    }
-
-    if (a === b) {
-        return true;
-    }
-
-    const aWords = a.split(" ").filter((word) => word.length > 0);
-    const bWords = b.split(" ").filter((word) => word.length > 0);
-
-    if (bWords.length === 1 && aWords.length === 1) {
-        const spokenWord = aWords[0];
-        const expectedWord = bWords[0];
-
-        return spokenWord === expectedWord
-            || spokenWord.includes(expectedWord)
-            || expectedWord.includes(spokenWord);
-    }
-
-    const significant = (words: string[]) => words.filter((word) => word.length >= 2);
-    const aSig = significant(aWords);
-    const bSig = significant(bWords);
-
-    if (bSig.length === 0) {
-        return a === b;
-    }
-
-    const matches = aSig.filter((word) => bSig.includes(word)).length;
-
-    return matches >= Math.max(1, Math.ceil(bSig.length * 0.6));
+    return scoreSpokenPhrase(spoken, expected) >= SPEAKING_PASS_SCORE_MIN;
 }
 
 export function compareTranslation(

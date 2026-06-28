@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Enums\LevelProgressMode;
 use App\Services\LevelProgressService;
 use App\Services\ProgressService;
+use App\Services\TierResetService;
 use App\Services\TokenService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,7 @@ class LevelProgressController extends Controller
         private readonly LevelProgressService $levelProgress,
         private readonly ProgressService $progress,
         private readonly TokenService $tokens,
+        private readonly TierResetService $tierResets,
     ) {}
 
     public function pass(Request $request, string $mode): RedirectResponse
@@ -37,13 +40,29 @@ class LevelProgressController extends Controller
 
         $user = $request->user();
 
+        $levelId = (int) $validated['level_id'];
+        $wasCompleted = $this->levelProgress->isCompleted(
+            $user,
+            $progressMode,
+            $levelId,
+        );
+
         try {
             $result = $this->levelProgress->recordQuestionPass(
                 $user,
                 $progressMode,
-                (int) $validated['level_id'],
+                $levelId,
                 (int) $validated['question_id'],
             );
+
+            if ($result['completed'] && ! $wasCompleted) {
+                $reward = (int) config('tokens.sublevel_complete_reward', 10);
+                $this->tokens->earn(
+                    $user,
+                    $reward,
+                    "sublevel_complete:{$progressMode->value}:{$levelId}",
+                );
+            }
 
             $this->progress->recordQuestionAttempt(
                 $user,
@@ -152,22 +171,35 @@ class LevelProgressController extends Controller
     public function resetTier(Request $request, string $mode): RedirectResponse
     {
         $progressMode = $this->resolveMode($mode);
+        $user = $request->user();
+
+        if ($user === null || ! $user->isLearner()) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'tier' => ['required', 'string', 'in:basico,intermedio,avanzado'],
         ]);
 
+        $tier = $validated['tier'];
+        $cost = $this->tierResets->costForTier();
+
         try {
-            $this->levelProgress->resetTier(
-                $request->user(),
-                $progressMode,
-                $validated['tier'],
-            );
+            DB::transaction(function () use ($user, $progressMode, $tier, $cost): void {
+                $this->tokens->spend($user, $cost, "tier_reset:{$tier}");
+                $this->levelProgress->resetTier($user, $progressMode, $tier);
+                $this->tierResets->incrementCount($user, $progressMode, $tier);
+            });
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['tier' => $exception->getMessage()]);
         }
 
-        return back();
+        $remaining = $this->tierResets->maxResets() - $this->tierResets->getCount($user->fresh(), $progressMode, $tier);
+
+        return back()->with(
+            'status',
+            "Módulo reiniciado. −{$cost} de poder. Te quedan {$remaining} reinicio(s) en este módulo.",
+        );
     }
 
     public function recordAttempt(Request $request, string $mode): RedirectResponse
@@ -223,6 +255,24 @@ class LevelProgressController extends Controller
         }
 
         return back()->with('status', 'Subnivel desbloqueado.');
+    }
+
+    public function review(Request $request, string $mode, int $levelId): JsonResponse
+    {
+        $progressMode = $this->resolveMode($mode);
+        $user = $request->user();
+
+        if ($user === null || ! $user->isLearner()) {
+            abort(403);
+        }
+
+        try {
+            $review = $this->levelProgress->sublevelReview($user, $progressMode, $levelId);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json($review);
     }
 
     private function resolveMode(string $mode): LevelProgressMode

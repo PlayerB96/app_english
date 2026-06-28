@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ProgressChart from "@/Components/ProgressChart.vue";
-import AppLayout from "@/Layouts/AppLayout.vue";
 import type { LearnerDashboardData } from "@/types/progress";
 import { Link } from "@inertiajs/vue3";
 import { Flame, Mic, Target, TrendingUp } from "@lucide/vue";
@@ -30,8 +29,7 @@ function formatDate(iso: string | null): string {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="space-y-6">
+    <div class="space-y-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-heading">
@@ -146,5 +144,4 @@ function formatDate(iso: string | null): string {
                 </div>
             </div>
         </div>
-    </AppLayout>
 </template>

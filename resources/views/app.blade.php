@@ -6,6 +6,12 @@
     <meta name="theme-color" content="#2563eb">
     <meta name="author" content="Dev English">
     <meta name="description" content="Aprende inglés para developers con práctica gratis por voz, vocabulario técnico y preparación para entrevistas en inglés.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
     <title inertia>{{ config('app.name', 'Dev English') }}</title>
     <script>
         (function () {
