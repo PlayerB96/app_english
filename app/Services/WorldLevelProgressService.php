@@ -125,6 +125,27 @@ class WorldLevelProgressService
         return $lockedUntil;
     }
 
+    public function skipLockout(User $user, int $levelId): void
+    {
+        if (! $this->isLockedOut($user, $levelId)) {
+            throw new InvalidArgumentException('El desafío no está bloqueado.');
+        }
+
+        $row = UserWorldLevelProgress::query()
+            ->where('user_id', $user->id)
+            ->where('level_id', $levelId)
+            ->first();
+
+        if ($row === null) {
+            throw new InvalidArgumentException('No se encontró el progreso del desafío.');
+        }
+
+        $row->locked_until = null;
+        $row->correct_question_ids = [];
+        $row->session_question_ids = null;
+        $row->save();
+    }
+
     public function isLockedOut(User $user, int $levelId): bool
     {
         $row = UserWorldLevelProgress::query()

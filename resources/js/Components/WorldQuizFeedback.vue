@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import type { WorldQuizFeedback } from "@/types/world";
+import PowerChip from "@/Components/PowerChip.vue";
 import { useLockoutCountdown } from "@/composables/useLockoutCountdown";
+import type { WorldQuizFeedback } from "@/types/world";
 import { formatLockoutGameTimer } from "@/utils/formatLockout";
 import { CheckCircle2, Lock } from "@lucide/vue";
 import { computed } from "vue";
 
 const props = defineProps<{
     feedback: WorldQuizFeedback;
+    skipCost: number;
+    tokens: number;
+    skipping?: boolean;
 }>();
 
 const emit = defineEmits<{
     continue: [];
+    skip: [];
 }>();
 
 const hasLockout = computed(
@@ -28,6 +33,14 @@ const lockoutTimer = computed(() => {
 
     return formatLockoutGameTimer(props.feedback.locked_until);
 });
+
+const canSkip = computed(
+    () => hasLockout.value && props.tokens >= props.skipCost,
+);
+
+const skipDisabled = computed(
+    () => props.skipping || !canSkip.value,
+);
 </script>
 
 <template>
@@ -81,6 +94,27 @@ const lockoutTimer = computed(() => {
                 </template>
             </p>
         </div>
+
+        <button
+            v-if="hasLockout"
+            type="button"
+            class="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+            :disabled="skipDisabled"
+            @click="emit('skip')"
+        >
+            <span>{{ skipping ? "Desbloqueando…" : "Desbloquear ahora" }}</span>
+            <PowerChip
+                :amount="skipCost"
+                sign="−"
+                size="md"
+            />
+            <span
+                v-if="!canSkip && !skipping"
+                class="text-xs font-normal text-amber-800/80 dark:text-amber-300/80"
+            >
+                Necesitas al menos {{ skipCost }} poder
+            </span>
+        </button>
 
         <button
             type="button"

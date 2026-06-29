@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserWorldLevelProgress;
 use App\Services\WorldLevelProgressService;
+use App\Services\WorldProgressService;
 use App\Services\WorldQuestionCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -55,22 +56,22 @@ class WorldLevelProgressTest extends TestCase
         }
 
         $this->assertTrue($result['completed']);
-        $this->assertContains(1, app(\App\Services\WorldProgressService::class)->snapshot($learner)['completed']);
-        $this->assertContains(2, app(\App\Services\WorldProgressService::class)->snapshot($learner)['unlocked']);
+        $this->assertContains(1, app(WorldProgressService::class)->snapshot($learner)['completed']);
+        $this->assertContains(2, app(WorldProgressService::class)->snapshot($learner)['unlocked']);
     }
 
-    public function test_world_quiz_failure_locks_level_for_twenty_four_hours(): void
+    public function test_world_quiz_failure_locks_level_for_four_hours(): void
     {
         $learner = $this->unlockWorld(User::factory()->learner()->create());
         $service = app(WorldLevelProgressService::class);
 
-        $lockedUntil = $service->recordFail($learner, 1, 2);
+        $lockedUntil = $service->recordFail($learner, 1, 4);
 
         $this->assertTrue($lockedUntil->isFuture());
         $this->assertTrue($service->isLockedOut($learner, 1));
 
         $this->actingAs($learner)
-            ->post('/world/levels/1/fail', ['hours' => 2])
+            ->post('/world/levels/1/fail')
             ->assertRedirect();
 
         $row = UserWorldLevelProgress::query()
@@ -83,11 +84,26 @@ class WorldLevelProgressTest extends TestCase
         $this->assertSame([], $row->correct_question_ids ?? []);
     }
 
+    public function test_learner_can_skip_world_lockout_with_tokens(): void
+    {
+        $learner = $this->unlockWorld(User::factory()->learner()->create());
+        $service = app(WorldLevelProgressService::class);
+        $service->recordFail($learner, 1, 4);
+
+        $this->actingAs($learner)
+            ->post('/world/levels/1/skip-lockout')
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertFalse($service->isLockedOut($learner->fresh(), 1));
+        $this->assertSame(480, $learner->fresh()->tokens);
+    }
+
     public function test_world_session_rejects_locked_level(): void
     {
         $learner = $this->unlockWorld(User::factory()->learner()->create());
         $service = app(WorldLevelProgressService::class);
-        $service->recordFail($learner, 1, 2);
+        $service->recordFail($learner, 1, 4);
 
         $this->actingAs($learner)
             ->post('/world/levels/1/session')

@@ -6,7 +6,7 @@ return [
     'unlock_cost' => (int) env('TOKENS_WORLD_UNLOCK_COST', 300),
 
     /** Horas de bloqueo tras fallar una pregunta del mundo (Tracks/Práctica usan 24). */
-    'lockout_hours' => (int) env('WORLD_LOCKOUT_HOURS', 2),
+    'lockout_hours' => (int) env('WORLD_LOCKOUT_HOURS', 4),
 
     /** Mundos del supernivel. */
     'worlds' => [

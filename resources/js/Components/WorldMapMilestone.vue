@@ -28,6 +28,14 @@ const emit = defineEmits<{
 
 const W = WORLD_MAP_CARD.width;
 const H = WORLD_MAP_CARD.height;
+const ICON_X = 24;
+const TEXT_X = 42;
+const TEXT_PAD_RIGHT = 26;
+const ICON_R = 12;
+const ICON_SIZE = 18;
+const BADGE_SIZE = 18;
+
+const textBlockWidth = W - TEXT_X - TEXT_PAD_RIGHT;
 
 const left = computed(() => props.milestone.x - W / 2);
 const top = computed(() => props.milestone.y - H / 2);
@@ -49,7 +57,7 @@ const subline = computed(() => {
     }
 
     if (isBoss.value) {
-        return truncate(props.milestone.name, 26);
+        return props.milestone.name;
     }
 
     const commands = props.milestone.commands.join(" · ");
@@ -59,7 +67,7 @@ const subline = computed(() => {
 
 const statusLine = computed(() => {
     if (isLockout.value) {
-        const hours = page.props.game.world_lockout_hours ?? 2;
+        const hours = page.props.game.world_lockout_hours ?? 4;
         const levelLabel = props.lockedLevelId
             ? `Nivel ${props.lockedLevelId} · `
             : "";
@@ -70,9 +78,9 @@ const statusLine = computed(() => {
     return `Niveles ${props.milestone.levelRange}`;
 });
 
-function truncate(value: string, max: number): string {
-    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-}
+const lockoutSubPrefix = computed(() =>
+    isLockout.value && props.lockoutTimer ? "Reintenta en " : "",
+);
 
 function handleActivate(): void {
     if (!props.interactive) {
@@ -91,6 +99,7 @@ function handleActivate(): void {
             'world-map-milestone--current': status === 'current' && !locked,
             'world-map-milestone--completed': status === 'completed' && !locked,
             'world-map-milestone--lockout': isLockout,
+            'world-map-milestone--lockout-clickable': isLockout && interactive,
             'world-map-milestone--boss': isBoss,
             'world-map-milestone--selected': selected,
         }"
@@ -112,7 +121,7 @@ function handleActivate(): void {
             :y="top"
             :width="W"
             :height="H"
-            rx="16"
+            rx="12"
             :fill="zone.fill"
             :stroke="
                 isLockout
@@ -121,119 +130,163 @@ function handleActivate(): void {
                         ? zone.accent
                         : zone.fillDark
             "
-            :stroke-width="selected ? 3.5 : isLockout ? 2.5 : 2"
+            :stroke-width="selected ? 3 : isLockout ? 2.5 : 1.5"
             filter="url(#wm-shadow)"
         />
         <rect
-            :x="left + 4"
-            :y="top + 4"
-            :width="W - 8"
-            :height="H - 8"
-            rx="12"
+            :x="left + 3"
+            :y="top + 3"
+            :width="W - 6"
+            :height="H - 6"
+            rx="9"
             :fill="zone.fillDark"
-            fill-opacity="0.4"
+            fill-opacity="0.35"
         />
 
         <circle
-            :cx="left + 34"
+            :cx="left + ICON_X"
             :cy="milestone.y"
-            r="21"
+            :r="ICON_R"
             :fill="zone.fillDark"
             :stroke="isLockout ? '#fbbf24' : zone.accent"
-            stroke-width="2"
+            stroke-width="1.5"
         />
         <foreignObject
-            :x="left + 22"
-            :y="milestone.y - 12"
-            width="24"
-            height="24"
+            :x="left + ICON_X - ICON_SIZE / 2"
+            :y="milestone.y - ICON_SIZE / 2"
+            :width="ICON_SIZE"
+            :height="ICON_SIZE"
         >
             <component
                 :is="icon"
-                class="h-6 w-6"
+                class="h-full w-full"
                 :style="{ color: isLockout ? '#fbbf24' : zone.accent }"
             />
         </foreignObject>
 
-        <text
-            :x="left + 64"
-            :y="milestone.y - 12"
-            fill="#f8fafc"
-            font-family="Chakra Petch, Outfit, sans-serif"
-            font-size="13.5"
-            font-weight="700"
+        <foreignObject
+            :x="left + TEXT_X"
+            :y="top + 4"
+            :width="textBlockWidth"
+            :height="H - 8"
         >
-            {{ truncate(headline, 22) }}
-        </text>
-        <text
-            :x="left + 64"
-            :y="milestone.y + 4"
-            :fill="isLockout ? '#fcd34d' : zone.accent"
-            font-family="Outfit, sans-serif"
-            font-size="10.5"
-            font-weight="600"
-        >
-            {{ statusLine }}
-        </text>
-        <text
-            :x="left + 64"
-            :y="milestone.y + 20"
-            :fill="isLockout ? '#fde68a' : '#cbd5e1'"
-            font-family="'JetBrains Mono', Outfit, monospace"
-            :font-size="isLockout ? 8 : 9.5"
-            :letter-spacing="isLockout ? '0.02em' : undefined"
-        >
-            {{ isLockout ? subline : truncate(subline, 28) }}
-        </text>
+            <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                class="world-map-milestone__copy"
+            >
+                <p class="world-map-milestone__headline">
+                    {{ headline }}
+                </p>
+                <p
+                    class="world-map-milestone__status"
+                    :style="{ color: isLockout ? '#fcd34d' : zone.accent }"
+                >
+                    {{ statusLine }}
+                </p>
+                <p
+                    class="world-map-milestone__subline"
+                    :class="{ 'world-map-milestone__subline--lockout': isLockout }"
+                >
+                    <template v-if="lockoutSubPrefix">{{ lockoutSubPrefix }}</template>{{ subline }}
+                </p>
+            </div>
+        </foreignObject>
 
-        <g :transform="`translate(${left + W - 26}, ${milestone.y - 11})`">
+        <g :transform="`translate(${left + W - 24}, ${milestone.y - 9})`">
             <foreignObject
                 v-if="status === 'locked' || locked"
                 x="0"
                 y="0"
-                width="22"
-                height="22"
+                :width="BADGE_SIZE"
+                :height="BADGE_SIZE"
             >
-                <Lock class="h-5 w-5 text-slate-300" />
+                <Lock class="h-[18px] w-[18px] text-slate-300" />
             </foreignObject>
             <foreignObject
                 v-else-if="isLockout"
                 x="0"
                 y="0"
-                width="22"
-                height="22"
+                :width="BADGE_SIZE"
+                :height="BADGE_SIZE"
             >
-                <Clock class="h-5 w-5 text-amber-300" />
+                <Clock class="h-[18px] w-[18px] text-amber-300" />
             </foreignObject>
             <foreignObject
                 v-else-if="status === 'completed'"
                 x="0"
                 y="0"
-                width="22"
-                height="22"
+                :width="BADGE_SIZE"
+                :height="BADGE_SIZE"
             >
-                <Check class="h-5 w-5 text-emerald-300" />
+                <Check class="h-[18px] w-[18px] text-emerald-300" />
             </foreignObject>
             <foreignObject
                 v-else
                 x="0"
                 y="0"
-                width="22"
-                height="22"
+                :width="BADGE_SIZE"
+                :height="BADGE_SIZE"
             >
-                <ChevronRight class="h-5 w-5 text-white" />
+                <ChevronRight class="h-[18px] w-[18px] text-white" />
             </foreignObject>
         </g>
     </g>
 </template>
 
 <style scoped>
+.world-map-milestone__copy {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    overflow: hidden;
+    line-height: 1.2;
+}
+
+.world-map-milestone__headline {
+    margin: 0;
+    font-family: "Chakra Petch", Outfit, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #f8fafc;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.world-map-milestone__status {
+    margin: 0;
+    font-family: Outfit, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.world-map-milestone__subline {
+    margin: 0;
+    font-family: "JetBrains Mono", Outfit, monospace;
+    font-size: 9.5px;
+    color: #cbd5e1;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.world-map-milestone__subline--lockout {
+    color: #fde68a;
+    letter-spacing: 0.03em;
+}
+
 .world-map-milestone--current > rect:first-of-type {
     animation: wm-milestone-glow 1.6s ease-in-out infinite;
 }
 
 .world-map-milestone--lockout > rect:first-of-type {
     animation: wm-milestone-lockout 2s ease-in-out infinite;
+}
+
+.world-map-milestone--lockout-clickable {
+    cursor: pointer;
 }
 
 @keyframes wm-milestone-glow {

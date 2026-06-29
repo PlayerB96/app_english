@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import AppLogo from "@/Components/AppLogo.vue";
+import SiteFooter from "@/Components/SiteFooter.vue";
 import ThemeToggle from "@/Components/ThemeToggle.vue";
 import { Link, useForm } from "@inertiajs/vue3";
-import { Eye, EyeOff, Languages } from "@lucide/vue";
+import { Eye, EyeOff } from "@lucide/vue";
 import { computed, ref } from "vue";
 
 const form = useForm({
@@ -48,7 +50,8 @@ function togglePasswordVisibility(): void {
 </script>
 
 <template>
-    <div class="surface-page relative flex items-center justify-center p-4">
+    <div class="surface-page flex min-h-screen flex-col">
+        <div class="relative flex flex-1 items-center justify-center p-4 pb-8">
         <div class="absolute right-4 top-4">
             <ThemeToggle />
         </div>
@@ -57,9 +60,10 @@ function togglePasswordVisibility(): void {
             <div class="surface-card p-8 shadow-lg">
                 <div class="mb-8 text-center">
                     <div class="mb-4 flex justify-center">
-                        <div class="rounded-full bg-blue-50 p-4 dark:bg-blue-950/60">
-                            <Languages class="h-10 w-10 text-blue-600 dark:text-blue-400" />
-                        </div>
+                        <AppLogo
+                            :clickable="false"
+                            size="lg"
+                        />
                     </div>
                     <h1 class="text-2xl font-bold text-heading">
                         Crear cuenta
@@ -200,5 +204,8 @@ function togglePasswordVisibility(): void {
                 </p>
             </div>
         </div>
+        </div>
+
+        <SiteFooter />
     </div>
 </template>

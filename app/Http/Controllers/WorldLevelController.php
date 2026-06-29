@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TokenService;
 use App\Services\WorldLevelProgressService;
 use App\Services\WorldProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class WorldLevelController extends Controller
@@ -13,6 +15,7 @@ class WorldLevelController extends Controller
     public function __construct(
         private readonly WorldLevelProgressService $levelProgress,
         private readonly WorldProgressService $worldProgress,
+        private readonly TokenService $tokens,
     ) {}
 
     public function startSession(Request $request, int $level): RedirectResponse
@@ -60,12 +63,34 @@ class WorldLevelController extends Controller
             $this->levelProgress->recordFail(
                 $request->user(),
                 $level,
-                (int) ($validated['hours'] ?? config('world.lockout_hours', 2)),
+                (int) ($validated['hours'] ?? config('world.lockout_hours', 4)),
             );
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['level_id' => $exception->getMessage()]);
         }
 
         return back();
+    }
+
+    public function skipLockout(Request $request, int $level): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user === null || ! $user->isLearner()) {
+            abort(403);
+        }
+
+        $cost = (int) config('tokens.world_skip_lockout_cost', 20);
+
+        try {
+            DB::transaction(function () use ($user, $level, $cost): void {
+                $this->tokens->spend($user, $cost, 'world_skip_lockout');
+                $this->levelProgress->skipLockout($user, $level);
+            });
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['level_id' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', 'Desafío desbloqueado. ¡Inténtalo de nuevo!');
     }
 }

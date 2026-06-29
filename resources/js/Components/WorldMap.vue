@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import WorldMapMilestone from "@/Components/WorldMapMilestone.vue";
 import { useLockoutCountdown } from "@/composables/useLockoutCountdown";
+import { useMediaQuery } from "@/composables/useMediaQuery";
 import { buildWorldMapModel } from "@/utils/buildWorldMapModel";
+import type { WorldMapOrientation } from "@/utils/buildWorldMapModel";
 import {
     lockedLevelInMilestone,
     milestonePathD,
@@ -9,8 +11,12 @@ import {
 } from "@/utils/worldMapLayout";
 import { worldMapTheme, zoneTheme } from "@/utils/worldMapThemes";
 import type { WorldInfo, WorldLevel } from "@/types/world";
+import type { PageProps } from "@/types/auth";
 import gsap from "gsap";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { usePage } from "@inertiajs/vue3";
+
+const page = usePage<{ game: PageProps["game"] }>();
 
 const props = withDefaults(
     defineProps<{
@@ -40,12 +46,20 @@ const emit = defineEmits<{
 const worldPathRef = ref<SVGPathElement | null>(null);
 let pathTween: gsap.core.Tween | null = null;
 
+const isMobileMap = useMediaQuery("(max-width: 767px)");
+
+const mapOrientation = computed<WorldMapOrientation>(() =>
+    isMobileMap.value ? "vertical" : "horizontal",
+);
+
 const theme = computed(() =>
     props.world ? worldMapTheme(props.world.tier) : worldMapTheme("basico"),
 );
 
 const model = computed(() =>
-    props.world ? buildWorldMapModel(props.world, props.levels) : null,
+    props.world
+        ? buildWorldMapModel(props.world, props.levels, mapOrientation.value)
+        : null,
 );
 
 const hasMilestones = computed(() => (model.value?.milestones.length ?? 0) > 0);
@@ -94,7 +108,7 @@ function milestoneInteractive(
 
     const status = milestoneStatus(milestone);
 
-    return status === "current" || status === "completed";
+    return status === "current" || status === "completed" || status === "lockout";
 }
 
 function lockoutTimerForMilestone(
@@ -164,7 +178,9 @@ const milestoneViews = computed(() => {
 });
 
 const worldPath = computed(() =>
-    model.value ? milestonePathD(model.value.milestones) : "",
+    model.value
+        ? milestonePathD(model.value.milestones, model.value.orientation)
+        : "",
 );
 
 const allCompleted = computed(() => {
@@ -186,6 +202,22 @@ const title = computed(() => {
 });
 
 const subtitle = computed(() => props.world?.subtitle ?? "");
+
+const lockoutHours = computed(() => page.props.game.world_lockout_hours ?? 4);
+
+const footerHint = computed(() => {
+    if (mode.value === "preview") {
+        return mapOrientation.value === "vertical"
+            ? "Vista previa · avanza de arriba abajo"
+            : "Vista previa · 5 etapas bloqueadas";
+    }
+
+    const lockoutHint = `fallo = bloqueo ${lockoutHours.value} h`;
+
+    return mapOrientation.value === "vertical"
+        ? `Toca una etapa · avanza de arriba abajo · ${lockoutHint}`
+        : `Toca una etapa para responder 3 preguntas · ${lockoutHint}`;
+});
 
 function handleMilestoneActivate(slug: string): void {
     emit("startZone", slug);
@@ -222,7 +254,7 @@ onBeforeUnmount(() => {
 });
 
 watch(
-    () => props.world?.tier,
+    () => [props.world?.tier, mapOrientation.value] as const,
     () => {
         nextTick(() => runPathDraw());
     },
@@ -232,7 +264,10 @@ watch(
 <template>
     <div
         class="world-map"
-        :class="`world-map--${mode}`"
+        :class="[
+            `world-map--${mode}`,
+            mapOrientation === 'vertical' ? 'world-map--vertical' : 'world-map--horizontal',
+        ]"
     >
         <header class="world-map__header">
             <div class="min-w-0 flex-1">
@@ -353,10 +388,10 @@ watch(
 
                     <rect
                         v-if="mode === 'preview'"
-                        x="0"
-                        y="0"
-                        :width="worldWidth"
-                        :height="worldHeight * 0.55"
+                        :x="mapOrientation === 'vertical' ? 0 : worldWidth * 0.45"
+                        :y="mapOrientation === 'vertical' ? worldHeight * 0.45 : 0"
+                        :width="mapOrientation === 'vertical' ? worldWidth : worldWidth * 0.55"
+                        :height="mapOrientation === 'vertical' ? worldHeight * 0.55 : worldHeight"
                         fill="url(#wm-fog)"
                         pointer-events="none"
                     />
@@ -393,11 +428,7 @@ watch(
         </div>
 
         <footer class="world-map__footer">
-            {{
-                mode === "preview"
-                    ? "Vista previa · 5 etapas bloqueadas"
-                    : "Toca una etapa para responder 3 preguntas · fallo = bloqueo 2 h"
-            }}
+            {{ footerHint }}
         </footer>
     </div>
 </template>
@@ -414,16 +445,25 @@ watch(
 .world-map__header {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-    padding: 0.55rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     background: rgba(15, 23, 42, 0.95);
     border-radius: 0.75rem 0.75rem 0 0;
 }
 
 .world-map__canvas {
-    overflow: visible;
+    overflow: hidden;
+    padding: 0.25rem 0.35rem 0.15rem;
+}
+
+.world-map--vertical .world-map__canvas {
     padding: 0.35rem 0.5rem 0.25rem;
+}
+
+.world-map--vertical .world-map__svg {
+    max-width: 22rem;
+    margin-inline: auto;
 }
 
 .world-map__svg {
@@ -460,7 +500,7 @@ watch(
 
 .world-map__footer {
     border-top: 1px solid rgba(148, 163, 184, 0.1);
-    padding: 0.4rem 0.75rem;
+    padding: 0.3rem 0.6rem;
     font-size: 10px;
     color: rgb(148 163 184);
     text-align: right;

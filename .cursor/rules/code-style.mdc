@@ -64,8 +64,10 @@ globs: ["**/*"]
 - Componentes de dominio: `QuestionCard`, `VoiceInput`, `LearningCurveChart`, `PracticeTimer`
 
 ### Iconos
-- Usar **@lucide/vue** (`import { Mic, MicOff, BookOpen } from "@lucide/vue"`)
+- UI general: **@lucide/vue** (`import { Mic, Menu } from "@lucide/vue"`)
+- **Marca**: `<AppLogo />` (horizontal) y `<AppIcon />` (cuadrado); assets en `public/images/brand/`; constantes en `resources/js/constants/brand.ts`
 - No añadir Font Awesome, Heroicons u otras librerías sin justificación
+- No duplicar branding con `Languages` + texto hardcodeado
 
 ### Estado
 - Pinia para estado global (sesión de práctica activa, progreso en curso)
@@ -80,16 +82,15 @@ globs: ["**/*"]
 - No enviar audio al backend salvo requisito explícito; enviar transcripción como string
 
 ### Estilos
-- Usar Tailwind CSS de forma exclusiva para estilos de UI
-- No usar CSS personalizado ni crear/modificar archivos `.css`
-- No usar `<style>`, `<style scoped>` ni CSS inline (`style=""`)
-- Clases utilitarias de Tailwind en el template
-- Breakpoints fijos: mobile (default), `md:` (768px), `lg:` (1024px)
-- Diseño mobile-first; no usar `sm:`, `xl:` o `2xl:` salvo excepción documentada
+- **Tailwind CSS** como base en templates Vue
+- Clases de componente compartidas en `resources/css/app.css` (`@layer components`): `.surface-*`, `.site-footer__*`, `.header-brand`, `.legal-prose`, etc.
+- Preferir utilidades Tailwind en el template; extraer a `app.css` solo patrones repetidos en 3+ pantallas
+- Breakpoints: mobile-first con `md:` (768px) y `lg:` (1024px); evitar `sm:`, `xl:`, `2xl:` salvo excepción
+- Tema claro/oscuro: clase `dark` en `<html>`; logos con variantes PNG claro/oscuro vía `AppLogo` / `AppIcon`
 
 ### TypeScript
 - Strict mode habilitado
 - No usar `any` — usar `unknown` si el tipo no se conoce
 - Interfaces para contratos de datos (props, API responses, preguntas, progreso)
 - Types para uniones y tipos derivados
-- Archivos de tipos en `resources/js/types/` (`auth.ts`, `practice.ts`, `api.ts`)
+- Archivos de tipos en `resources/js/types/` (`auth.ts`, `legal.ts`, `powerShop.ts`, etc.)

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#2563eb">
     <meta name="author" content="Dev English">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/brand/logo-icon-32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/brand/logo-icon-64.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/brand/logo-icon-180.png">
     <meta name="description" content="Aprende inglés para developers con práctica gratis por voz, vocabulario técnico y preparación para entrevistas en inglés.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

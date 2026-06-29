@@ -17,8 +17,10 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LevelProgressController;
 use App\Http\Controllers\MockPageController;
+use App\Http\Controllers\PowerShopController;
 use App\Http\Controllers\WorldController;
 use App\Http\Controllers\WorldLevelController;
 use Illuminate\Support\Facades\Route;
@@ -40,12 +42,26 @@ Route::get('/robots.txt', function () {
     );
 })->name('robots');
 
+Route::get('/legal/terminos', [LegalController::class, 'terms'])->name('legal.terms');
+Route::get('/legal/privacidad', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/legal/devoluciones', [LegalController::class, 'refunds'])->name('legal.refunds');
+Route::get('/legal/proveedor', [LegalController::class, 'notice'])->name('legal.notice');
+Route::get('/legal/reclamaciones', [LegalController::class, 'complaints'])->name('legal.complaints');
+Route::post('/legal/reclamaciones', [LegalController::class, 'storeComplaint'])
+    ->middleware('throttle:6,1')
+    ->name('legal.complaints.store');
+
 Route::get('/sitemap.xml', function () {
     $base = rtrim(config('app.url'), '/');
     $urls = [
         ['loc' => $base.'/', 'changefreq' => 'weekly', 'priority' => '1.0'],
         ['loc' => $base.'/login', 'changefreq' => 'monthly', 'priority' => '0.8'],
         ['loc' => $base.'/register', 'changefreq' => 'monthly', 'priority' => '0.8'],
+        ['loc' => $base.'/legal/terminos', 'changefreq' => 'monthly', 'priority' => '0.5'],
+        ['loc' => $base.'/legal/privacidad', 'changefreq' => 'monthly', 'priority' => '0.5'],
+        ['loc' => $base.'/legal/devoluciones', 'changefreq' => 'monthly', 'priority' => '0.5'],
+        ['loc' => $base.'/legal/proveedor', 'changefreq' => 'monthly', 'priority' => '0.5'],
+        ['loc' => $base.'/legal/reclamaciones', 'changefreq' => 'monthly', 'priority' => '0.6'],
     ];
 
     $xml = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -112,6 +128,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/world/levels/{level}/fail', [WorldLevelController::class, 'fail'])
             ->whereNumber('level')
             ->name('world.levels.fail');
+        Route::post('/world/levels/{level}/skip-lockout', [WorldLevelController::class, 'skipLockout'])
+            ->whereNumber('level')
+            ->name('world.levels.skip-lockout');
 
         Route::post('/level-progress/{mode}/pass', [LevelProgressController::class, 'pass'])
             ->whereIn('mode', ['speaking', 'quiz'])
@@ -137,6 +156,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/level-progress/{mode}/skip-lockout', [LevelProgressController::class, 'skipLockout'])
             ->whereIn('mode', ['speaking', 'quiz'])
             ->name('level-progress.skip-lockout');
+        Route::post('/power-shop/purchases', [PowerShopController::class, 'store'])
+            ->name('power-shop.purchases.store');
+        Route::post('/power-shop/redeem', [PowerShopController::class, 'redeem'])
+            ->middleware('throttle:10,1')
+            ->name('power-shop.redeem');
         Route::get('/level-progress/{mode}/levels/{levelId}/review', [LevelProgressController::class, 'review'])
             ->whereIn('mode', ['speaking', 'quiz'])
             ->whereNumber('levelId')

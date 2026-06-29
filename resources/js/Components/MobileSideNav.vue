@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from "@/Components/AppLogo.vue";
 import PowerIcon from "@/Components/PowerIcon.vue";
 import ThemeToggle from "@/Components/ThemeToggle.vue";
 import { useAppStore } from "@/Stores/useAppStore";
@@ -100,13 +101,12 @@ onUnmounted(() => {
             >
                 <div class="mobile-sidenav-header">
                     <div class="min-w-0 flex-1">
-                        <Link
+                        <AppLogo
                             :href="homeHref"
+                            size="md"
                             class="mobile-sidenav-brand"
                             @click="closeNav"
-                        >
-                            Dev English
-                        </Link>
+                        />
                         <p class="mt-2 truncate text-sm font-medium text-heading">
                             {{ user.name }}
                         </p>

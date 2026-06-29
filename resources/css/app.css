@@ -56,7 +56,7 @@
     }
 
     .header-brand {
-        @apply truncate font-display text-base font-bold tracking-wide text-heading sm:text-lg lg:text-xl;
+        @apply max-w-[9rem] sm:max-w-none;
     }
 
     .header-actions {
@@ -77,6 +77,43 @@
 
     .header-power-badge {
         @apply inline-flex items-center gap-1 px-0.5 text-xs font-extrabold tabular-nums leading-none tracking-wide text-orange-700 dark:text-orange-300 sm:gap-1.5 sm:px-1 sm:text-sm;
+    }
+
+    .header-power-vault {
+        @apply relative shrink-0 overflow-visible rounded-md;
+    }
+
+    .header-power-vault-track {
+        @apply flex items-center overflow-visible;
+    }
+
+    .header-power-vault-secret {
+        @apply inline-flex max-w-0 items-center justify-center overflow-visible whitespace-nowrap opacity-0;
+        padding-left: 0;
+        padding-right: 0;
+        transform: translateX(-0.25rem);
+        transition:
+            max-width 0.32s ease,
+            opacity 0.22s ease,
+            padding 0.32s ease,
+            transform 0.32s ease;
+    }
+
+    .header-power-vault:hover .header-power-vault-secret,
+    .header-power-vault:focus-within .header-power-vault-secret {
+        max-width: 1.75rem;
+        @apply opacity-100;
+        padding-left: 0.3rem;
+        transform: translateX(0);
+    }
+
+    .header-shop-icon {
+        @apply h-3.5 w-3.5 shrink-0 text-orange-600/55 transition-colors dark:text-orange-400/50;
+    }
+
+    .header-power-vault:hover .header-shop-icon,
+    .header-power-vault:focus-within .header-shop-icon {
+        @apply text-orange-600/85 dark:text-orange-400/75;
     }
 
     .header-token-badge {
@@ -306,7 +343,7 @@
     }
 
     .mobile-sidenav-brand {
-        @apply font-display text-lg font-bold tracking-wide text-heading;
+        @apply block;
     }
 
     .mobile-sidenav-nav {
@@ -375,6 +412,155 @@
 
     .alert-warn {
         @apply rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200;
+    }
+
+    .site-footer {
+        @apply mt-auto border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900;
+    }
+
+    .site-footer__inner {
+        @apply grid gap-10 py-10 lg:grid-cols-3 lg:gap-12 lg:py-12;
+    }
+
+    .site-footer__brand-link {
+        @apply block;
+    }
+
+    .site-footer__tagline {
+        @apply mt-3 max-w-sm text-sm text-muted;
+    }
+
+    .site-footer__business {
+        @apply mt-5 space-y-3 text-sm;
+    }
+
+    .site-footer__business dt {
+        @apply font-medium text-heading;
+    }
+
+    .site-footer__business dd {
+        @apply text-muted;
+    }
+
+    .site-footer__nav-title {
+        @apply text-sm font-semibold uppercase tracking-wide text-heading;
+    }
+
+    .site-footer__links {
+        @apply mt-4 space-y-2.5;
+    }
+
+    .site-footer__link {
+        @apply text-sm text-body transition-colors hover:text-blue-600 dark:hover:text-blue-400;
+    }
+
+    .site-footer__contact-link {
+        @apply mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300;
+    }
+
+    .site-footer__phone {
+        @apply mt-2 text-sm text-muted;
+    }
+
+    .site-footer__note {
+        @apply mt-4 text-xs text-muted;
+    }
+
+    .site-footer__bottom {
+        @apply border-t border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/60;
+    }
+
+    .site-footer__bottom-inner {
+        @apply flex flex-col gap-2 py-5 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left;
+    }
+
+    .site-footer__copyright {
+        @apply text-sm text-muted;
+    }
+
+    .site-footer__disclaimer {
+        @apply text-xs text-muted;
+    }
+
+    .legal-layout-header {
+        @apply border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900;
+    }
+
+    .legal-layout-header__inner {
+        @apply flex items-center justify-between py-4;
+    }
+
+    .legal-layout-brand {
+        @apply block;
+    }
+
+    .legal-prose {
+        @apply space-y-6 text-body;
+    }
+
+    .legal-prose h2 {
+        @apply text-xl font-semibold text-heading;
+    }
+
+    .legal-prose h3 {
+        @apply text-lg font-semibold text-heading;
+    }
+
+    .legal-prose p,
+    .legal-prose li {
+        @apply leading-relaxed;
+    }
+
+    .legal-prose ul {
+        @apply list-disc space-y-2 pl-5;
+    }
+
+    .legal-prose a {
+        @apply font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300;
+    }
+
+    .legal-updated {
+        @apply text-sm text-muted;
+    }
+
+    .legal-dl {
+        @apply space-y-4;
+    }
+
+    .legal-dl dt {
+        @apply text-sm font-medium text-heading;
+    }
+
+    .legal-dl dd {
+        @apply mt-1 text-body;
+    }
+
+    .legal-complaint-intro {
+        @apply mb-8 space-y-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100;
+    }
+
+    .legal-complaint-form {
+        @apply space-y-6;
+    }
+
+    .legal-form-grid {
+        @apply grid gap-5 md:grid-cols-2;
+    }
+
+    .legal-form-field--full {
+        @apply md:col-span-2;
+    }
+
+    .legal-form-error {
+        @apply mt-1 text-sm text-red-600 dark:text-red-400;
+    }
+
+    .legal-form-note {
+        @apply text-sm text-muted;
+    }
+
+    .legal-form-submit {
+        @apply w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600 sm:w-auto;
     }
 }
 

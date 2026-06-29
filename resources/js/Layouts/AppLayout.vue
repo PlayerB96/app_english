@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import AppFlash from "@/Components/AppFlash.vue";
+import AppIcon from "@/Components/AppIcon.vue";
+import AppLogo from "@/Components/AppLogo.vue";
+import HeaderPowerVault from "@/Components/HeaderPowerVault.vue";
 import MobileSideNav from "@/Components/MobileSideNav.vue";
 import PowerIcon from "@/Components/PowerIcon.vue";
+import SiteFooter from "@/Components/SiteFooter.vue";
 import ThemeToggle from "@/Components/ThemeToggle.vue";
 import { useAutoHideHeader } from "@/composables/useAutoHideHeader";
 import { useAppStore } from "@/Stores/useAppStore";
@@ -19,7 +23,6 @@ import {
 import { computed, onMounted, ref, watch } from "vue";
 import type { PageProps } from "@/types/auth";
 import { roleLabel } from "@/types/auth";
-import { powerBalanceLabel } from "@/utils/powerLabels";
 
 const page = usePage<{ auth: PageProps["auth"]; url: string }>();
 const appStore = useAppStore();
@@ -155,7 +158,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="surface-page">
+    <div class="surface-page flex min-h-screen flex-col">
         <header
             v-if="user"
             class="app-header"
@@ -185,12 +188,16 @@ onMounted(() => {
                             <Menu class="h-4 w-4" />
                         </button>
 
-                        <Link
+                        <AppIcon
                             :href="homeHref"
-                            class="header-brand"
-                        >
-                            Dev English
-                        </Link>
+                            size="sm"
+                            class="header-brand md:hidden"
+                        />
+                        <AppLogo
+                            :href="homeHref"
+                            size="lg"
+                            class="header-brand hidden md:inline-flex"
+                        />
                     </div>
 
                     <div class="header-actions">
@@ -198,15 +205,10 @@ onMounted(() => {
                             class="header-utilities"
                             :class="{ 'hidden md:flex': isAdmin }"
                         >
-                            <span
+                            <HeaderPowerVault
                                 v-if="!isAdmin"
-                                class="header-power-badge"
-                                :title="`${powerBalanceLabel(user.tokens ?? 0)} disponible`"
-                            >
-                                <PowerIcon size-class="h-3.5 w-3.5" />
-                                <span>{{ user.tokens ?? 0 }}</span>
-                                <span class="capitalize">poder</span>
-                            </span>
+                                :tokens="user.tokens ?? 0"
+                            />
 
                             <span
                                 v-if="!isAdmin"
@@ -291,7 +293,7 @@ onMounted(() => {
         />
 
         <main
-            class="pb-4 md:pb-6 lg:pb-8"
+            class="flex-1 pb-4 md:pb-6 lg:pb-8"
             :style="{ paddingTop: mainPaddingTop }"
         >
             <div
@@ -302,5 +304,7 @@ onMounted(() => {
                 <slot />
             </div>
         </main>
+
+        <SiteFooter />
     </div>
 </template>

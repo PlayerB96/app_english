@@ -70,6 +70,15 @@ Prioridad al implementar: **`guidance.agent`** → **`guidance.developer`** (arc
 7. Seguir `guidance.agent` y ubicar cambios según `guidance.developer.files`.
 8. Al completar cada subtarea: ejecutar su comando `validation`; solo entonces marcarla `completed` en `activities.json`.
 
+## Módulos recientes (referencia rápida)
+
+| Módulo | Backend | Frontend | Config |
+|--------|---------|----------|--------|
+| Marca | — | `AppLogo`, `AppIcon`, `constants/brand.ts` | `public/images/brand/` |
+| Legal | `LegalController`, `LegalService`, `ComplaintRepository` | `Pages/Legal/*`, `LegalLayout`, `SiteFooter` | `config/legal.php` |
+| Power shop | `PowerShopController`, `PowerShopService` | `PowerWalletModal`, `HeaderPowerVault` | `config/power_shop.php`, `config/tokens.php` |
+| Mundo | `WorldLevelController`, `WorldLevelProgressService` | `World/Index`, `WorldMap*`, `useWorldLevelProgress` | `config/world.php` |
+
 ## Al terminar una actividad
 
 9. Ejecutar tests relacionados: `php artisan test`
@@ -90,6 +99,8 @@ Prioridad al implementar: **`guidance.agent`** → **`guidance.developer`** (arc
 - Archivos nuevos según `project.mdc` y las rutas en `guidance.developer.files`.
 - Probar en contexto **mobile-first** (viewport 375px); la práctica con voz debe funcionar en móvil cuando el navegador lo permita.
 - Sincronización con Jira: skill `activities-to-jira` con el ID de actividad (ej. `WS-010`); no modificar `activities.json` durante esa sync salvo petición explícita.
+- Cambios de marca: actualizar PNG en `public/images/brand/` y reutilizar vía `AppLogo`/`AppIcon`; no tocar cada layout por separado.
+- Páginas legales: textos legales en Vue; datos dinámicos (RUC, email) desde `config/legal.php` vía prop Inertia `legal`.
 
 ## Convención de IDs
 

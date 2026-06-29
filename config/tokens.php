@@ -8,6 +8,9 @@ return [
     /** Coste para omitir el bloqueo de un subnivel. */
     'skip_lockout_cost' => (int) env('TOKENS_SKIP_LOCKOUT_COST', 10),
 
+    /** Coste para omitir el bloqueo de un desafío del mundo. */
+    'world_skip_lockout_cost' => (int) env('TOKENS_WORLD_SKIP_LOCKOUT_COST', 20),
+
     /** Máximo de reinicios por módulo (por modo: speaking / quiz). */
     'max_tier_resets' => (int) env('TOKENS_MAX_TIER_RESETS', 2),
 

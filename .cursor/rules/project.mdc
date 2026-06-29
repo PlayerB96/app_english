@@ -23,6 +23,19 @@ globs: ["**/*"]
 | **Question** | Pregunta en inglés (IA o banco curado), orientada a contexto de desarrollo |
 | **Answer** | Respuesta del usuario (texto y/o voz transcrita) |
 | **Progress / learning curve** | Métricas de evolución: precisión, fluidez, nivel estimado, racha |
+| **World / Linux Kingdom** | Mapa interactivo con zonas, niveles, quiz (54 preguntas), lockout 2h al fallar |
+| **Power (tokens)** | Moneda virtual para desbloquear niveles; tienda con Yape/Plin y códigos promocionales |
+| **Legal / compliance** | Páginas legales Perú (términos, privacidad, devoluciones, proveedor, libro de reclamaciones) |
+
+## Marca (logo)
+
+- Nombre visual: **DevEnglish** (`resources/js/constants/brand.ts` → `BRAND_NAME`).
+- Logo horizontal: `<AppLogo />` — PNG en `public/images/brand/logo-compact*.png` (variantes claro/oscuro + `@2x`).
+- Icono cuadrado: `<AppIcon />` — PNG en `public/images/brand/logo-icon-*.png` (32, 64, 180 px).
+- **No** repetir icono Lucide + texto manual para branding; usar siempre `AppLogo` o `AppIcon`.
+- Favicon / apple-touch-icon: iconos cuadrados en `resources/views/app.blade.php`.
+- Tamaños logo: `sm` (22px), `md` (28px), `lg` (34px). Icono: `sm` (32px), `md` (64px), `lg` (180px).
+- Header app: `AppIcon` en mobile, `AppLogo` desde `md:`.
 
 ## Restricciones
 - PHP **8.4.21** obligatorio
@@ -42,7 +55,10 @@ globs: ["**/*"]
 - Integración IA: llamadas desde **Services** del backend; **nunca** exponer API keys en el frontend
 - Voz: captura y reconocimiento en el **frontend**; el backend recibe texto transcrito
 - No instalar paquetes sin justificación documentada
-- Iconos UI: **@lucide/vue**
+- Iconos UI: **@lucide/vue** (no usar para logo de marca; usar `AppLogo` / `AppIcon`)
+- Páginas legales: datos del negocio en `config/legal.php` + `LegalService`; compartidos vía `HandleInertiaRequests` como prop `legal`
+- Power shop: `config/power_shop.php`, `PowerShopService`, rutas en `PowerShopController`; tokens en `config/tokens.php`
+- Footer global: `SiteFooter.vue` en layouts públicos y autenticados
 
 ## Convenciones PostgreSQL
 
@@ -82,12 +98,19 @@ database/
 
 resources/js/
 ├── Pages/                  → Páginas Vue (Inertia)
-├── Components/             → VoiceInput, QuestionCard, etc.
-├── Composables/            → useSpeechRecognition, usePracticeSession, etc.
+│   ├── Legal/              → Términos, privacidad, reclamaciones, etc.
+│   └── World/              → Mapa y quiz del mundo
+├── Components/             → AppLogo, AppIcon, SiteFooter, WorldMap, PowerWalletModal, etc.
+├── constants/              → brand.ts (logo e icono estándar)
+├── Composables/            → useSpeechRecognition, useWorldLevelProgress, useMediaQuery, etc.
 ├── Stores/                 → Pinia
-├── Layouts/                → Layouts
-├── types/                  → TypeScript
+├── Layouts/                → AppLayout, LegalLayout
+├── types/                  → TypeScript (auth, legal, powerShop, etc.)
 └── Services/               → Clientes frontend (solo endpoints propios)
+
+public/images/
+├── brand/                  → logo-compact*.png, logo-icon-*.png
+└── payments/               → QR Yape/Plin (SVG)
 ```
 
 ## Autenticación

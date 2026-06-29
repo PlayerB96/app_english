@@ -251,7 +251,7 @@ export function useWorldLevelProgress(initial: MaybeRef<WorldProgressState>) {
 
     function markFailedWithLockout(
         levelId: number,
-        hours = 2,
+        hours = 4,
         options?: { question_id?: number; response_text?: string },
     ): Promise<string> {
         const previous = cloneState(currentSnapshot());
@@ -289,6 +289,44 @@ export function useWorldLevelProgress(initial: MaybeRef<WorldProgressState>) {
         });
     }
 
+    function skipLockout(levelId: number): Promise<void> {
+        const previous = cloneState(currentSnapshot());
+        syncing.value = true;
+        delete lockouts.value[String(levelId)];
+
+        return new Promise((resolve, reject) => {
+            router.post(
+                `/world/levels/${levelId}/skip-lockout`,
+                {},
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        delete questionProgress.value[String(levelId)];
+                        delete answeredQuestions.value[String(levelId)];
+                        delete sessionQuestions.value[String(levelId)];
+                    },
+                    onError: () => {
+                        syncState(
+                            unlocked,
+                            completed,
+                            lockouts,
+                            questionProgress,
+                            answeredQuestions,
+                            sessionQuestions,
+                            previous,
+                        );
+                        reject(new Error("skip_lockout_failed"));
+                    },
+                    onFinish: () => {
+                        syncing.value = false;
+                        reloadProgress().then(() => resolve()).catch(() => resolve());
+                    },
+                },
+            );
+        });
+    }
+
     return {
         unlocked,
         completed,
@@ -308,6 +346,7 @@ export function useWorldLevelProgress(initial: MaybeRef<WorldProgressState>) {
         startSession,
         markQuestionPassed,
         markFailedWithLockout,
+        skipLockout,
         reloadProgress,
     };
 }

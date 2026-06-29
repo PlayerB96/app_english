@@ -1,4 +1,4 @@
-import type { WorldMapLevelNode, WorldMapMilestone } from "@/utils/buildWorldMapModel";
+import type { WorldMapLevelNode, WorldMapMilestone, WorldMapOrientation } from "@/utils/buildWorldMapModel";
 
 export type WorldNodeVisualStatus =
     | "locked"
@@ -102,8 +102,11 @@ export function lockedLevelInMilestone(
     return null;
 }
 
-/** Camino serpenteante que une los centros de los hitos (de abajo a arriba). */
-export function milestonePathD(milestones: WorldMapMilestone[]): string {
+/** Camino serpenteante que une los centros de los hitos. */
+export function milestonePathD(
+    milestones: WorldMapMilestone[],
+    orientation: WorldMapOrientation = "horizontal",
+): string {
     if (milestones.length === 0) {
         return "";
     }
@@ -115,8 +118,14 @@ export function milestonePathD(milestones: WorldMapMilestone[]): string {
     for (let i = 1; i < points.length; i += 1) {
         const prev = points[i - 1];
         const curr = points[i];
-        const midY = (prev.y + curr.y) / 2;
-        d += ` C ${prev.x} ${midY} ${curr.x} ${midY} ${curr.x} ${curr.y}`;
+
+        if (orientation === "vertical") {
+            const midY = (prev.y + curr.y) / 2;
+            d += ` C ${prev.x} ${midY} ${curr.x} ${midY} ${curr.x} ${curr.y}`;
+        } else {
+            const midX = (prev.x + curr.x) / 2;
+            d += ` C ${midX} ${prev.y} ${midX} ${curr.y} ${curr.x} ${curr.y}`;
+        }
     }
 
     return d;

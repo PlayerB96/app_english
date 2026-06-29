@@ -40,7 +40,10 @@ type Step = "gate" | "map" | "quiz" | "feedback";
 const page = usePage<{ auth: PageProps["auth"]; game: PageProps["game"] }>();
 
 const worldLockoutHours = computed(
-    () => page.props.game.world_lockout_hours ?? 2,
+    () => page.props.game.world_lockout_hours ?? 4,
+);
+const worldSkipLockoutCost = computed(
+    () => page.props.game.world_skip_lockout_cost ?? 20,
 );
 
 const step = ref<Step>(props.world_access.unlocked ? "map" : "gate");
@@ -58,6 +61,7 @@ const previewWorldTier = ref<WorldTierSlug | null>(
         : (props.worlds.find((world) => world.status === "available")?.tier ?? null),
 );
 const unlocking = ref(false);
+const skippingLockout = ref(false);
 
 const access = toRef(props, "world_access");
 const progressState = toRef(props, "progress");
@@ -78,6 +82,12 @@ const activeWorld = computed(
     () => props.worlds.find((world) => world.status === "available") ?? props.worlds[0],
 );
 
+const lockedUpcomingWorlds = computed(() => {
+    const activeTier = activeWorld.value?.tier;
+
+    return props.worlds.filter((world) => world.tier !== activeTier);
+});
+
 const previewWorld = computed(
     () => props.worlds.find((world) => world.tier === previewWorldTier.value) ?? null,
 );
@@ -91,7 +101,22 @@ const sessionQuestionIds = computed(() => {
         return [];
     }
 
-    return worldProgress.sessionQuestionsFor(selectedLevelId.value);
+    const fromProgress = worldProgress.sessionQuestionsFor(selectedLevelId.value);
+
+    if (fromProgress.length > 0) {
+        return fromProgress;
+    }
+
+    if (!worldProgress.isLockedOut(selectedLevelId.value)) {
+        return [];
+    }
+
+    const pool = props.questions_by_level[String(selectedLevelId.value)] ?? [];
+
+    return [...pool]
+        .sort((a, b) => a.question_index - b.question_index)
+        .slice(0, WORLD_QUESTIONS_PER_LEVEL)
+        .map((question) => question.question_id);
 });
 
 const activeQuestions = computed(() => {
@@ -160,12 +185,17 @@ watch(
 );
 
 const questionPosition = computed(() => {
-    if (!selectedLevel.value || !currentQuestion.value) {
+    if (!selectedLevel.value || !currentQuestion.value || selectedLevelId.value === null) {
         return null;
     }
 
+    const answered = worldProgress.answeredQuestionsFor(selectedLevelId.value).length;
+    const sessionQuestion = activeQuestions.value.find(
+        (question) => question.question_id === currentQuestion.value!.question_id,
+    );
+
     return {
-        current: currentQuestion.value.question_index,
+        current: sessionQuestion?.question_index ?? answered + 1,
         total: WORLD_QUESTIONS_PER_LEVEL,
     };
 });
@@ -191,6 +221,49 @@ const completedCount = computed(() => progressState.value.completed.length);
 const progressPercent = computed(() =>
     Math.round((completedCount.value / WORLD_TOTAL_LEVELS) * 100),
 );
+
+const currentWorldLevelId = computed((): number | null => {
+    if (step.value !== "map" && selectedLevelId.value !== null) {
+        return selectedLevelId.value;
+    }
+
+    const worldLevels = props.levels
+        .filter((level) => level.tier === activeWorld.value?.tier)
+        .sort((a, b) => a.id - b.id);
+
+    const next = worldLevels.find(
+        (level) => worldProgress.isUnlocked(level.id) && !worldProgress.isCompleted(level.id),
+    );
+
+    if (next) {
+        return next.id;
+    }
+
+    if (worldLevels.length === 0) {
+        return null;
+    }
+
+    const last = worldLevels[worldLevels.length - 1];
+
+    return worldProgress.isCompleted(last.id) ? last.id : worldLevels[0]?.id ?? null;
+});
+
+const headerProgressLabel = computed(() => {
+    if (completedCount.value >= WORLD_TOTAL_LEVELS) {
+        return `Completado · ${progressPercent.value}%`;
+    }
+
+    const id = currentWorldLevelId.value;
+
+    if (id === null) {
+        return `${progressPercent.value}%`;
+    }
+
+    const level = props.levels.find((item) => item.id === id);
+    const levelLabel = level?.is_boss ? `Nivel ${id} · Boss` : `Nivel ${id}`;
+
+    return `${levelLabel} de ${WORLD_TOTAL_LEVELS} · ${progressPercent.value}%`;
+});
 
 function selectPreviewWorld(tier: WorldTierSlug): void {
     previewWorldTier.value = tier;
@@ -219,7 +292,7 @@ function levelsForTier(tier: WorldTierSlug): WorldLevel[] {
     return props.levels.filter((level) => level.tier === tier);
 }
 
-function firstPlayableLevelInZone(slug: string): number | null {
+function levelIdForZone(slug: string): number | null {
     const ids = props.levels
         .filter((level) => level.zone === slug)
         .map((level) => level.id)
@@ -230,10 +303,15 @@ function firstPlayableLevelInZone(slug: string): number | null {
     }
 
     return (
-        ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id) && !worldProgress.isLockedOut(id))
+        ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id) && worldProgress.isLockedOut(id))
+        ?? ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id) && !worldProgress.isLockedOut(id))
         ?? ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id))
         ?? null
     );
+}
+
+function firstPlayableLevelInZone(slug: string): number | null {
+    return levelIdForZone(slug);
 }
 
 function isUnlocked(id: number): boolean {
@@ -289,28 +367,44 @@ async function handleUnlock(): Promise<void> {
     );
 }
 
+const selectedLevelLockedOut = computed(() => {
+    if (selectedLevelId.value === null) {
+        return false;
+    }
+
+    return worldProgress.isLockedOut(selectedLevelId.value);
+});
+
+const selectedLevelLockoutUntil = computed(() => {
+    if (selectedLevelId.value === null) {
+        return null;
+    }
+
+    return worldProgress.lockoutRemaining(selectedLevelId.value);
+});
+
 async function startWorldLevel(id: number): Promise<void> {
     sessionError.value = null;
 
-    if (!worldProgress.isUnlocked(id) || worldProgress.isLockedOut(id)) {
+    if (!worldProgress.isUnlocked(id) || worldProgress.isCompleted(id)) {
         return;
     }
 
-    if (worldProgress.isCompleted(id)) {
-        return;
-    }
+    const locked = worldProgress.isLockedOut(id);
 
     selectedLevelId.value = id;
 
-    try {
-        await worldProgress.startSession(id);
-    } catch {
-        selectedLevelId.value = null;
-        const errors = page.props.errors as Record<string, string> | undefined;
-        sessionError.value =
-            errors?.level_id ?? "No se pudo iniciar el desafío. Inténtalo de nuevo.";
+    if (!locked) {
+        try {
+            await worldProgress.startSession(id);
+        } catch {
+            selectedLevelId.value = null;
+            const errors = page.props.errors as Record<string, string> | undefined;
+            sessionError.value =
+                errors?.level_id ?? "No se pudo iniciar el desafío. Inténtalo de nuevo.";
 
-        return;
+            return;
+        }
     }
 
     if (activeQuestions.value.length === 0) {
@@ -346,7 +440,13 @@ async function submitAnswer(): Promise<void> {
     const options = shuffledOptions.value;
     const levelIdValue = selectedLevelId.value;
 
-    if (!question || !options || levelIdValue === null || selectedOption.value === null) {
+    if (
+        !question
+        || !options
+        || levelIdValue === null
+        || selectedOption.value === null
+        || worldProgress.isLockedOut(levelIdValue)
+    ) {
         return;
     }
 
@@ -401,6 +501,34 @@ function continueAfterFeedback(): void {
     selectedOption.value = null;
     quizFeedback.value = null;
     step.value = "quiz";
+}
+
+async function handleSkipLockout(): Promise<void> {
+    const levelIdValue = selectedLevelId.value;
+
+    if (levelIdValue === null || skippingLockout.value) {
+        return;
+    }
+
+    if (tokens.value < worldSkipLockoutCost.value) {
+        return;
+    }
+
+    skippingLockout.value = true;
+
+    try {
+        await worldProgress.skipLockout(levelIdValue);
+        await worldProgress.startSession(levelIdValue);
+        selectedOption.value = null;
+        quizFeedback.value = null;
+        step.value = "quiz";
+    } catch {
+        sessionError.value = "No se pudo desbloquear el desafío. Comprueba tu poder e inténtalo de nuevo.";
+        step.value = "map";
+        selectedLevelId.value = null;
+    } finally {
+        skippingLockout.value = false;
+    }
 }
 </script>
 
@@ -659,7 +787,7 @@ function continueAfterFeedback(): void {
                                     Mapa del recorrido
                                 </p>
                                 <p class="mt-1 text-xs text-muted md:text-sm">
-                                    {{ previewWorld.zones.length }} etapas + boss · {{ WORLD_TOTAL_LEVELS }} desafíos dentro del camino. Empiezas abajo y avanzas hasta el jefe final.
+                                    {{ previewWorld.zones.length }} etapas + boss · {{ WORLD_TOTAL_LEVELS }} desafíos dentro del camino. Avanza de izquierda a derecha hasta el jefe final.
                                 </p>
                             </div>
                             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/60">
@@ -711,9 +839,7 @@ function continueAfterFeedback(): void {
                             {{ activeWorld?.name }}
                         </span>
                         <span>·</span>
-                        <span>{{ completedCount }}/{{ WORLD_TOTAL_LEVELS }}</span>
-                        <span>·</span>
-                        <span>{{ progressPercent }}%</span>
+                        <span>{{ headerProgressLabel }}</span>
                     </p>
                 </div>
                 <button
@@ -729,74 +855,122 @@ function continueAfterFeedback(): void {
 
             <div
                 v-if="step === 'map'"
-                class="grid gap-4 lg:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] lg:items-start lg:gap-6 xl:gap-8"
+                class="space-y-3"
             >
-                <aside class="space-y-3 lg:sticky lg:top-6 xl:top-8">
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60 lg:rounded-xl lg:px-4 lg:py-3">
+                <div
+                    v-if="sessionError"
+                    role="alert"
+                    class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                >
+                    {{ sessionError }}
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60 sm:px-4 sm:py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
+                            Progreso
+                        </p>
+                        <p class="mt-0.5 text-sm font-bold text-heading md:text-base">
+                            {{ completedCount }}/{{ WORLD_TOTAL_LEVELS }} · {{ progressPercent }}%
+                        </p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60 sm:px-4 sm:py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
+                            Poder
+                        </p>
+                        <p class="mt-0.5 inline-flex items-center gap-1 text-sm font-bold text-orange-700 dark:text-orange-300 md:text-base">
+                            <PowerIcon size-class="h-3.5 w-3.5" />
+                            {{ tokens }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60 sm:px-4 sm:py-2.5">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
+                            Acceso
+                        </p>
+                        <p class="mt-0.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 md:text-base">
+                            Desbloqueado
+                        </p>
+                    </div>
+                </div>
+
+                <div class="surface-card p-3 sm:p-4">
+                    <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-0.5">
+                        <div>
                             <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
-                                Progreso
+                                Mapa de aventura
                             </p>
-                            <p class="mt-0.5 text-sm font-bold text-heading md:text-base">
-                                {{ completedCount }}/{{ WORLD_TOTAL_LEVELS }} · {{ progressPercent }}%
-                            </p>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60 lg:rounded-xl lg:px-4 lg:py-3">
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
-                                Poder
-                            </p>
-                            <p class="mt-0.5 inline-flex items-center gap-1 text-sm font-bold text-orange-700 dark:text-orange-300 md:text-base">
-                                <PowerIcon size-class="h-3.5 w-3.5" />
-                                {{ tokens }}
-                            </p>
-                        </div>
-                        <div class="col-span-2 rounded-lg bg-gray-50 px-3 py-2 sm:col-span-1 lg:col-span-1 dark:bg-gray-800/60 lg:rounded-xl lg:px-4 lg:py-3">
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
-                                Acceso
-                            </p>
-                            <p class="mt-0.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 md:text-base">
-                                Desbloqueado
+                            <p class="text-xs text-muted md:text-sm">
+                                Toca una etapa para responder 3 preguntas técnicas y avanzar
                             </p>
                         </div>
                     </div>
-                </aside>
+                    <WorldMap
+                        :world="activeWorld"
+                        :levels="props.levels"
+                        :world-names="worldNames"
+                        :is-unlocked="isUnlocked"
+                        :is-completed="isCompleted"
+                        :is-pending="isPending"
+                        :is-locked-out="isLockedOut"
+                        :lockout-label="formatLockoutLabel"
+                        @start-zone="handleStartFromZone"
+                    />
+                </div>
 
-                <div class="min-w-0 space-y-3">
-                    <div
-                        v-if="sessionError"
-                        role="alert"
-                        class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
-                    >
-                        {{ sessionError }}
+                <p class="text-center text-xs text-muted md:text-sm">
+                    Cada desafío tiene 3 preguntas. Si fallas una, queda bloqueado {{ worldLockoutHours }} horas (o desbloquea con {{ worldSkipLockoutCost }} poder).
+                </p>
+
+                <div
+                    v-if="lockedUpcomingWorlds.length"
+                    class="space-y-2"
+                >
+                    <div>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
+                            Próximos mundos
+                        </p>
+                        <p class="mt-0.5 text-xs text-muted md:text-sm">
+                            Completa {{ activeWorld?.name ?? "el mundo actual" }} para desbloquear el resto
+                        </p>
                     </div>
-
-                    <div class="surface-card p-3 sm:p-4 lg:p-5">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-                            <div>
-                                <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
-                                    Mapa de aventura
+                    <ul class="grid gap-2 sm:grid-cols-2">
+                        <li
+                            v-for="world in lockedUpcomingWorlds"
+                            :key="world.tier"
+                            class="flex items-start gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3 py-3 opacity-90 dark:border-slate-600 dark:bg-slate-900/40"
+                        >
+                            <span class="mt-0.5 shrink-0 opacity-45">
+                                <WorldIcon
+                                    :tier="world.tier"
+                                    size-class="h-5 w-5"
+                                />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <p class="font-semibold text-slate-600 dark:text-slate-400">
+                                        {{ world.name }}
+                                    </p>
+                                    <span class="inline-flex items-center gap-0.5 rounded bg-slate-200/80 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600 dark:bg-slate-700/80 dark:text-slate-400">
+                                        <Lock class="h-2.5 w-2.5" />
+                                        Bloqueado
+                                    </span>
+                                    <span
+                                        v-if="world.status === 'coming_soon'"
+                                        class="inline-flex items-center gap-0.5 rounded bg-slate-200/80 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600 dark:bg-slate-700/80 dark:text-slate-400"
+                                    >
+                                        <Hourglass class="h-2.5 w-2.5" />
+                                        Próximamente
+                                    </span>
+                                </div>
+                                <p class="mt-0.5 text-xs text-muted">
+                                    {{ world.subtitle }}
                                 </p>
-                                <p class="text-xs text-muted md:text-sm">
-                                    Toca una etapa para responder 3 preguntas técnicas y avanzar
+                                <p class="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-500">
+                                    Termina {{ activeWorld?.name ?? "este mundo" }} para acceder.
                                 </p>
                             </div>
-                        </div>
-                        <WorldMap
-                            :world="activeWorld"
-                            :levels="props.levels"
-                            :world-names="worldNames"
-                            :is-unlocked="isUnlocked"
-                            :is-completed="isCompleted"
-                            :is-pending="isPending"
-                            :is-locked-out="isLockedOut"
-                            :lockout-label="formatLockoutLabel"
-                            @start-zone="handleStartFromZone"
-                        />
-                    </div>
-
-                    <p class="text-center text-xs text-muted md:text-sm">
-                        Cada desafío tiene 3 preguntas. Si fallas una, queda bloqueado {{ worldLockoutHours }} horas.
-                    </p>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
@@ -809,14 +983,24 @@ function continueAfterFeedback(): void {
                 :question-position="questionPosition"
                 :shuffled-options="shuffledOptions.options"
                 :selected-option="selectedOption"
+                :locked-out="selectedLevelLockedOut"
+                :lockout-until="selectedLevelLockoutUntil"
+                :skip-cost="worldSkipLockoutCost"
+                :tokens="tokens"
+                :skipping="skippingLockout"
                 @select="selectedOption = $event"
                 @submit="submitAnswer"
+                @skip="handleSkipLockout"
             />
 
             <WorldQuizFeedback
                 v-else-if="step === 'feedback' && quizFeedback"
                 :feedback="quizFeedback"
+                :skip-cost="worldSkipLockoutCost"
+                :tokens="tokens"
+                :skipping="skippingLockout"
                 @continue="continueAfterFeedback"
+                @skip="handleSkipLockout"
             />
         </template>
     </div>

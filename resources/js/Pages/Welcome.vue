@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import AppLogo from "@/Components/AppLogo.vue";
 import ThemeToggle from "@/Components/ThemeToggle.vue";
+import SiteFooter from "@/Components/SiteFooter.vue";
 import WelcomeShowcaseVideo from "@/Components/WelcomeShowcaseVideo.vue";
 import { Head, Link } from "@inertiajs/vue3";
 import {
@@ -7,7 +9,6 @@ import {
     BookOpen,
     CheckCircle2,
     Code2,
-    Languages,
     Lock,
     Mic,
     Sparkles,
@@ -276,16 +277,7 @@ const jsonLd = computed(() =>
     <div class="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
         <header class="surface-header sticky top-0 z-50">
             <div class="app-container-wide flex items-center justify-between gap-4 py-4 sm:py-5">
-                <a
-                    href="/"
-                    class="flex items-center gap-2 font-bold text-heading"
-                    aria-label="Dev English — Inicio"
-                >
-                    <div class="rounded-xl bg-blue-600 p-2 text-white dark:bg-blue-500">
-                        <Languages class="h-5 w-5" />
-                    </div>
-                    <span>Dev English</span>
-                </a>
+                <AppLogo size="lg" />
                 <nav
                     class="hidden items-center gap-6 text-sm font-medium text-body md:flex"
                     aria-label="Navegación principal"
@@ -644,22 +636,6 @@ const jsonLd = computed(() =>
             </section>
         </main>
 
-        <footer class="border-t border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
-            <div class="app-container-wide flex flex-col items-center justify-between gap-6 py-10 sm:flex-row lg:py-12">
-                <div class="flex items-center gap-2 font-semibold text-heading">
-                    <Languages class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    Dev English
-                </div>
-                <p class="text-center text-sm text-muted">
-                    Inglés para developers · Práctica gratis · Entrevistas técnicas · Vocabulario dev
-                </p>
-                <Link
-                    href="/login"
-                    class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                    Iniciar sesión
-                </Link>
-            </div>
-        </footer>
+        <SiteFooter />
     </div>
 </template>
