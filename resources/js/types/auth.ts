@@ -24,6 +24,7 @@ export interface PageProps {
         tier_reset_cost: number;
         sublevel_complete_reward: number;
         world_unlock_cost: number;
+        world_lockout_hours: number;
     };
 }
 

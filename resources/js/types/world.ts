@@ -59,6 +59,42 @@ export interface WorldAccessState {
 export interface WorldProgressState {
     unlocked: number[];
     completed: number[];
+    lockouts?: Record<string, string>;
+    question_progress?: Record<string, { correct: number; total: number }>;
+    answered_questions?: Record<string, number[]>;
+    session_questions?: Record<string, number[]>;
+}
+
+export type WorldQuestionType =
+    | "translation"
+    | "sentence_completion"
+    | "term_meaning"
+    | "command_context"
+    | "scenario";
+
+export type WorldQuestionDifficulty = "facil" | "medio" | "dificil";
+
+export interface WorldQuestion {
+    question_id: number;
+    world_level_id: number;
+    question_index: number;
+    type: WorldQuestionType;
+    difficulty: WorldQuestionDifficulty;
+    prompt: string;
+    context: string | null;
+    options: [string, string, string];
+    correct_index: number;
+}
+
+export interface WorldQuizFeedback {
+    is_correct: boolean;
+    correct_answer: string;
+    message: string;
+    locked_until: string | null;
+    level_completed?: boolean;
+    questions_correct?: number;
+    questions_total?: number;
 }
 
 export const WORLD_TOTAL_LEVELS = 18;
+export const WORLD_QUESTIONS_PER_LEVEL = 3;

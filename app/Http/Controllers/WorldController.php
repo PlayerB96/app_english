@@ -6,7 +6,9 @@ use App\Models\User;
 use App\Services\TokenService;
 use App\Services\WorldAccessService;
 use App\Services\WorldCatalogService;
+use App\Services\WorldLevelProgressService;
 use App\Services\WorldProgressService;
+use App\Services\WorldQuestionCatalogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +23,8 @@ class WorldController extends Controller
         private readonly WorldAccessService $access,
         private readonly WorldCatalogService $catalog,
         private readonly WorldProgressService $progress,
+        private readonly WorldLevelProgressService $levelProgress,
+        private readonly WorldQuestionCatalogService $questions,
         private readonly TokenService $tokens,
     ) {}
 
@@ -28,6 +32,16 @@ class WorldController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
+
+        $baseProgress = $this->progress->snapshot($user);
+        $quizProgress = $this->levelProgress->quizSnapshot($user);
+
+        $questionsByLevel = [];
+
+        foreach ($this->catalog->levels() as $level) {
+            $levelId = (int) $level['id'];
+            $questionsByLevel[$levelId] = $this->questions->questionsForLevel($levelId);
+        }
 
         return Inertia::render('World/Index', [
             'worlds' => $this->catalog->worlds(),
@@ -37,7 +51,11 @@ class WorldController extends Controller
                 'unlock_cost' => $this->access->unlockCost(),
                 'unlocked_at' => $user->world_unlocked_at?->toIso8601String(),
             ],
-            'progress' => $this->progress->snapshot($user),
+            'progress' => [
+                ...$baseProgress,
+                ...$quizProgress,
+            ],
+            'questions_by_level' => $questionsByLevel,
         ]);
     }
 

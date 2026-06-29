@@ -20,6 +20,7 @@ use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\LevelProgressController;
 use App\Http\Controllers\MockPageController;
 use App\Http\Controllers\WorldController;
+use App\Http\Controllers\WorldLevelController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -102,6 +103,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/world/levels/{level}/complete', [WorldController::class, 'complete'])
             ->whereNumber('level')
             ->name('world.levels.complete');
+        Route::post('/world/levels/{level}/session', [WorldLevelController::class, 'startSession'])
+            ->whereNumber('level')
+            ->name('world.levels.session');
+        Route::post('/world/levels/{level}/answer', [WorldLevelController::class, 'answer'])
+            ->whereNumber('level')
+            ->name('world.levels.answer');
+        Route::post('/world/levels/{level}/fail', [WorldLevelController::class, 'fail'])
+            ->whereNumber('level')
+            ->name('world.levels.fail');
 
         Route::post('/level-progress/{mode}/pass', [LevelProgressController::class, 'pass'])
             ->whereIn('mode', ['speaking', 'quiz'])

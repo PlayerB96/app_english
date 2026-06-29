@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\UserWorldLevelProgress;
 use App\Models\UserWorldProgress;
 use InvalidArgumentException;
 
@@ -29,12 +30,7 @@ class WorldProgressService
             ];
         }
 
-        $completed = UserWorldProgress::query()
-            ->where('user_id', $user->id)
-            ->orderBy('level_id')
-            ->pluck('level_id')
-            ->values()
-            ->all();
+        $completed = $this->completedLevelIds($user);
 
         $unlocked = [];
 
@@ -50,7 +46,7 @@ class WorldProgressService
         ];
     }
 
-    public function completeLevel(User $user, int $levelId): void
+    public function syncCompletedLevel(User $user, int $levelId): void
     {
         $this->assertValidLevelId($levelId);
 
@@ -58,31 +54,38 @@ class WorldProgressService
             throw new InvalidArgumentException('Debes desbloquear el Mundo primero.');
         }
 
-        if (! $this->catalog->levelExists($levelId)) {
-            throw new InvalidArgumentException('Desafío inválido.');
-        }
-
-        if ($this->isCompleted($user, $levelId)) {
-            return;
-        }
-
         if (! $this->isUnlocked($user, $levelId)) {
             throw new InvalidArgumentException('Este desafío aún no está desbloqueado.');
         }
 
-        UserWorldProgress::query()->create([
-            'user_id' => $user->id,
-            'level_id' => $levelId,
-            'completed_at' => now(),
-        ]);
+        UserWorldLevelProgress::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'level_id' => $levelId,
+            ],
+            [
+                'completed_at' => now(),
+                'locked_until' => null,
+            ],
+        );
+
+        if (! $this->isCompleted($user, $levelId)) {
+            UserWorldProgress::query()->create([
+                'user_id' => $user->id,
+                'level_id' => $levelId,
+                'completed_at' => now(),
+            ]);
+        }
+    }
+
+    public function completeLevel(User $user, int $levelId): void
+    {
+        $this->syncCompletedLevel($user, $levelId);
     }
 
     public function isCompleted(User $user, int $levelId, ?array $completed = null): bool
     {
-        $completed ??= UserWorldProgress::query()
-            ->where('user_id', $user->id)
-            ->pluck('level_id')
-            ->all();
+        $completed ??= $this->completedLevelIds($user);
 
         return in_array($levelId, $completed, true);
     }
@@ -98,7 +101,7 @@ class WorldProgressService
             return false;
         }
 
-        if (! $this->isWorldTierUnlocked($levelId, $user, $completed)) {
+        if (! $this->isWorldTierUnlocked($levelId)) {
             return false;
         }
 
@@ -106,18 +109,35 @@ class WorldProgressService
             return true;
         }
 
-        $completed ??= UserWorldProgress::query()
-            ->where('user_id', $user->id)
-            ->pluck('level_id')
-            ->all();
+        $completed ??= $this->completedLevelIds($user);
 
         return in_array($levelId - 1, $completed, true);
     }
 
     /**
-     * @param  list<int>|null  $completed
+     * @return list<int>
      */
-    private function isWorldTierUnlocked(int $levelId, User $user, ?array $completed = null): bool
+    private function completedLevelIds(User $user): array
+    {
+        $fromLevelProgress = UserWorldLevelProgress::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('completed_at')
+            ->pluck('level_id')
+            ->all();
+
+        if ($fromLevelProgress !== []) {
+            return array_values(array_unique(array_map('intval', $fromLevelProgress)));
+        }
+
+        return UserWorldProgress::query()
+            ->where('user_id', $user->id)
+            ->orderBy('level_id')
+            ->pluck('level_id')
+            ->values()
+            ->all();
+    }
+
+    private function isWorldTierUnlocked(int $levelId): bool
     {
         $tier = $this->catalog->tierForLevel($levelId);
 

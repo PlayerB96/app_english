@@ -2,31 +2,29 @@
 import WorldHeaderBadge from "@/Components/WorldHeaderBadge.vue";
 import WorldIcon from "@/Components/WorldIcon.vue";
 import WorldMap from "@/Components/WorldMap.vue";
-import WorldMapDetailPanel from "@/Components/WorldMapDetailPanel.vue";
+import WorldQuizFeedback from "@/Components/WorldQuizFeedback.vue";
+import WorldQuizStep from "@/Components/WorldQuizStep.vue";
 import PowerChip from "@/Components/PowerChip.vue";
 import PowerIcon from "@/Components/PowerIcon.vue";
+import { useWorldLevelProgress } from "@/composables/useWorldLevelProgress";
 import { confirmWorldUnlock } from "@/utils/confirmWorldUnlock";
+import { buildLevelSessionQuestions } from "@/utils/buildLevelSessionQuestions";
+import { formatLockoutRemaining } from "@/utils/formatLockout";
+import { shuffleQuizOptions } from "@/utils/shuffleQuizOptions";
 import type {
     WorldAccessState,
-    WorldChallengeType,
     WorldInfo,
     WorldLevel,
     WorldProgressState,
+    WorldQuestion,
+    WorldQuizFeedback as WorldQuizFeedbackState,
     WorldTierSlug,
-    WorldZone,
 } from "@/types/world";
-import { WORLD_TOTAL_LEVELS } from "@/types/world";
+import { WORLD_QUESTIONS_PER_LEVEL, WORLD_TOTAL_LEVELS } from "@/types/world";
 import type { PageProps } from "@/types/auth";
-import {
-    ArrowLeft,
-    CheckCircle2,
-    Clock,
-    Hourglass,
-    Lock,
-} from "@lucide/vue";
+import { ArrowLeft, Hourglass, Lock } from "@lucide/vue";
 import { computed, ref, toRef, watch } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
-import { resolveNodeVisualStatus } from "@/utils/worldMapLayout";
 import { POWER_UNIT, powerCostLabel } from "@/utils/powerLabels";
 
 const props = defineProps<{
@@ -34,25 +32,36 @@ const props = defineProps<{
     levels: WorldLevel[];
     world_access: WorldAccessState;
     progress: WorldProgressState;
+    questions_by_level: Record<string, WorldQuestion[]>;
 }>();
 
-type Step = "gate" | "map" | "challenge";
+type Step = "gate" | "map" | "quiz" | "feedback";
 
 const page = usePage<{ auth: PageProps["auth"]; game: PageProps["game"] }>();
 
+const worldLockoutHours = computed(
+    () => page.props.game.world_lockout_hours ?? 2,
+);
+
 const step = ref<Step>(props.world_access.unlocked ? "map" : "gate");
 const selectedLevelId = ref<number | null>(null);
-const mapFocusedLevelId = ref<number>(1);
+const selectedOption = ref<number | null>(null);
+const quizFeedback = ref<WorldQuizFeedbackState | null>(null);
+const shuffledOptions = ref<{
+    options: [string, string, string];
+    correct_index: number;
+} | null>(null);
+const sessionError = ref<string | null>(null);
 const previewWorldTier = ref<WorldTierSlug | null>(
     props.world_access.unlocked
         ? null
         : (props.worlds.find((world) => world.status === "available")?.tier ?? null),
 );
 const unlocking = ref(false);
-const completing = ref(false);
 
 const access = toRef(props, "world_access");
 const progressState = toRef(props, "progress");
+const worldProgress = useWorldLevelProgress(progressState);
 
 const tokens = computed(() => page.props.auth.user?.tokens ?? 0);
 const unlockCost = computed(() => access.value.unlock_cost);
@@ -71,6 +80,116 @@ const activeWorld = computed(
 
 const previewWorld = computed(
     () => props.worlds.find((world) => world.tier === previewWorldTier.value) ?? null,
+);
+
+const selectedLevel = computed(
+    () => props.levels.find((level) => level.id === selectedLevelId.value) ?? null,
+);
+
+const sessionQuestionIds = computed(() => {
+    if (selectedLevelId.value === null) {
+        return [];
+    }
+
+    return worldProgress.sessionQuestionsFor(selectedLevelId.value);
+});
+
+const activeQuestions = computed(() => {
+    if (selectedLevelId.value === null) {
+        return [];
+    }
+
+    const pool = props.questions_by_level[String(selectedLevelId.value)] ?? [];
+
+    return buildLevelSessionQuestions(
+        pool.map((question) => ({
+            question_id: question.question_id,
+            level_id: question.world_level_id,
+            question_index: question.question_index,
+            step_difficulty: question.difficulty === "medio"
+                ? "medio"
+                : question.difficulty === "dificil"
+                    ? "dificil"
+                    : "facil",
+            sublevel_intensity: 1,
+            prompt: question.prompt,
+            options: question.options,
+            correct_index: question.correct_index,
+        })),
+        sessionQuestionIds.value,
+    );
+});
+
+const currentQuestion = computed((): WorldQuestion | null => {
+    const levelId = selectedLevelId.value;
+
+    if (levelId === null) {
+        return null;
+    }
+
+    const answered = worldProgress.answeredQuestionsFor(levelId);
+    const pool = props.questions_by_level[String(levelId)] ?? [];
+    const next = activeQuestions.value.find(
+        (question) => !answered.includes(question.question_id),
+    );
+
+    if (!next) {
+        return null;
+    }
+
+    return pool.find((item) => item.question_id === next.question_id) ?? null;
+});
+
+watch(
+    currentQuestion,
+    (question) => {
+        selectedOption.value = null;
+
+        if (!question) {
+            shuffledOptions.value = null;
+
+            return;
+        }
+
+        shuffledOptions.value = shuffleQuizOptions(
+            question.options,
+            question.correct_index,
+        );
+    },
+    { immediate: true },
+);
+
+const questionPosition = computed(() => {
+    if (!selectedLevel.value || !currentQuestion.value) {
+        return null;
+    }
+
+    return {
+        current: currentQuestion.value.question_index,
+        total: WORLD_QUESTIONS_PER_LEVEL,
+    };
+});
+
+const selectedZoneLabel = computed(() => {
+    const level = selectedLevel.value;
+
+    if (!level) {
+        return null;
+    }
+
+    if (level.is_boss) {
+        return activeWorld.value?.boss?.title ?? "Final Boss";
+    }
+
+    const world = props.worlds.find((item) => item.tier === level.tier);
+
+    return world?.zones.find((zone) => zone.slug === level.zone)?.name ?? null;
+});
+
+const completedCount = computed(() => progressState.value.completed.length);
+
+const progressPercent = computed(() =>
+    Math.round((completedCount.value / WORLD_TOTAL_LEVELS) * 100),
 );
 
 function selectPreviewWorld(tier: WorldTierSlug): void {
@@ -96,80 +215,46 @@ function worldListButtonClass(world: WorldInfo): string {
         : "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800";
 }
 
-const selectedZone = computed((): WorldZone | null => {
-    const level = selectedLevel.value;
-
-    if (!level) {
-        return null;
-    }
-
-    const world = props.worlds.find((item) => item.tier === level.tier);
-
-    if (!world) {
-        return null;
-    }
-
-    if (level.zone === "final-boss") {
-        return null;
-    }
-
-    return world.zones.find((zone) => zone.slug === level.zone) ?? null;
-});
-
-const selectedZoneLabel = computed(() => {
-    const level = selectedLevel.value;
-
-    if (!level) {
-        return null;
-    }
-
-    if (level.is_boss) {
-        return "Final Boss";
-    }
-
-    const zone = selectedZone.value;
-
-    return zone?.name ?? null;
-});
-
-const completedSet = computed(() => new Set(progressState.value.completed));
-
-const selectedLevel = computed(
-    () => props.levels.find((level) => level.id === selectedLevelId.value) ?? null,
-);
-
-const mapFocusedLevel = computed(
-    () => props.levels.find((level) => level.id === mapFocusedLevelId.value) ?? null,
-);
-
-function zoneForLevel(level: WorldLevel | null): WorldZone | null {
-    if (!level || level.zone === "final-boss") {
-        return null;
-    }
-
-    const world = props.worlds.find((item) => item.tier === level.tier);
-
-    return world?.zones.find((zone) => zone.slug === level.zone) ?? null;
+function levelsForTier(tier: WorldTierSlug): WorldLevel[] {
+    return props.levels.filter((level) => level.tier === tier);
 }
 
-const mapFocusedZone = computed(() => zoneForLevel(mapFocusedLevel.value));
+function firstPlayableLevelInZone(slug: string): number | null {
+    const ids = props.levels
+        .filter((level) => level.zone === slug)
+        .map((level) => level.id)
+        .sort((a, b) => a - b);
 
-function focusMapLevel(id: number): void {
-    mapFocusedLevelId.value = id;
+    if (ids.length === 0) {
+        return null;
+    }
+
+    return (
+        ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id) && !worldProgress.isLockedOut(id))
+        ?? ids.find((id) => worldProgress.isUnlocked(id) && !worldProgress.isCompleted(id))
+        ?? null
+    );
 }
 
-const completedCount = computed(() => progressState.value.completed.length);
+function isUnlocked(id: number): boolean {
+    return worldProgress.isUnlocked(id);
+}
 
-const progressPercent = computed(() =>
-    Math.round((completedCount.value / WORLD_TOTAL_LEVELS) * 100),
-);
+function isCompleted(id: number): boolean {
+    return worldProgress.isCompleted(id);
+}
 
-const typeLabels: Record<WorldChallengeType, string> = {
-    quest: "Misión NPC",
-    command_lab: "Lab de comandos",
-    puzzle: "Puzzle",
-    boss_interview: "Entrevista final",
-};
+function isPending(id: number): boolean {
+    return worldProgress.isPending(id);
+}
+
+function isLockedOut(id: number): boolean {
+    return worldProgress.isLockedOut(id);
+}
+
+function formatLockoutLabel(id: number): string | null {
+    return formatLockoutRemaining(worldProgress.lockoutRemaining(id));
+}
 
 watch(
     () => props.world_access.unlocked,
@@ -179,57 +264,6 @@ watch(
         }
     },
 );
-
-watch(
-    () => progressState.value.unlocked,
-    (unlocked) => {
-        const playable = unlocked.find((id) => !completedSet.value.has(id));
-
-        if (playable && mapFocusedLevelId.value === 1) {
-            mapFocusedLevelId.value = playable;
-        }
-    },
-    { immediate: true },
-);
-
-function isUnlocked(id: number): boolean {
-    return progressState.value.unlocked.includes(id);
-}
-
-function isCompleted(id: number): boolean {
-    return completedSet.value.has(id);
-}
-
-function isPending(_id: number): boolean {
-    return false;
-}
-
-function isLockedOut(_id: number): boolean {
-    return false;
-}
-
-function nodeStatusFor(id: number, preview = false): "locked" | "current" | "completed" | "pending" | "lockout" | "preview" {
-    if (preview) {
-        return "preview";
-    }
-
-    return resolveNodeVisualStatus(
-        id,
-        true,
-        isCompleted,
-        isLockedOut,
-        isPending,
-        isUnlocked,
-    );
-}
-
-function startFocusedLevel(): void {
-    openLevel(mapFocusedLevelId.value);
-}
-
-function viewFocusedCompleted(): void {
-    viewCompletedLevel(mapFocusedLevelId.value);
-}
 
 async function handleUnlock(): Promise<void> {
     const confirmed = await confirmWorldUnlock({
@@ -255,47 +289,118 @@ async function handleUnlock(): Promise<void> {
     );
 }
 
-function openLevel(id: number): void {
-    if (!isUnlocked(id) || isCompleted(id)) {
+async function startWorldLevel(id: number): Promise<void> {
+    sessionError.value = null;
+
+    if (!worldProgress.isUnlocked(id) || worldProgress.isLockedOut(id)) {
+        return;
+    }
+
+    if (worldProgress.isCompleted(id)) {
         return;
     }
 
     selectedLevelId.value = id;
-    step.value = "challenge";
+
+    try {
+        await worldProgress.startSession(id);
+    } catch {
+        selectedLevelId.value = null;
+        const errors = page.props.errors as Record<string, string> | undefined;
+        sessionError.value =
+            errors?.level_id ?? "No se pudo iniciar el desafío. Inténtalo de nuevo.";
+
+        return;
+    }
+
+    if (activeQuestions.value.length === 0) {
+        selectedLevelId.value = null;
+        sessionError.value = "No hay preguntas disponibles para este desafío.";
+
+        return;
+    }
+
+    selectedOption.value = null;
+    quizFeedback.value = null;
+    step.value = "quiz";
 }
 
-function viewCompletedLevel(id: number): void {
-    selectedLevelId.value = id;
-    step.value = "challenge";
+function handleStartFromZone(slug: string): void {
+    const id = firstPlayableLevelInZone(slug);
+
+    if (id !== null) {
+        void startWorldLevel(id);
+    }
 }
 
 function backToMap(): void {
     step.value = "map";
     selectedLevelId.value = null;
+    selectedOption.value = null;
+    quizFeedback.value = null;
+    shuffledOptions.value = null;
 }
 
-function completeChallenge(): void {
-    const level = selectedLevel.value;
+async function submitAnswer(): Promise<void> {
+    const question = currentQuestion.value;
+    const options = shuffledOptions.value;
+    const levelIdValue = selectedLevelId.value;
 
-    if (!level || isCompleted(level.id)) {
+    if (!question || !options || levelIdValue === null || selectedOption.value === null) {
+        return;
+    }
+
+    const isCorrect = selectedOption.value === options.correct_index;
+
+    if (isCorrect) {
+        const result = await worldProgress.markQuestionPassed(
+            levelIdValue,
+            question.question_id,
+            { response_text: options.options[selectedOption.value] },
+        );
+
+        quizFeedback.value = {
+            is_correct: true,
+            correct_answer: options.options[options.correct_index],
+            message: result.completed
+                ? "¡Desafío completado! Respondiste correctamente las 3 preguntas."
+                : `¡Correcto! Llevas ${result.correct}/${result.total} preguntas del desafío.`,
+            locked_until: null,
+            level_completed: result.completed,
+            questions_correct: result.correct,
+            questions_total: result.total,
+        };
+    } else {
+        const lockedUntil = await worldProgress.markFailedWithLockout(
+            levelIdValue,
+            worldLockoutHours.value,
+            {
+                question_id: question.question_id,
+                response_text: options.options[selectedOption.value],
+            },
+        );
+
+        quizFeedback.value = {
+            is_correct: false,
+            correct_answer: options.options[options.correct_index],
+            message: `Respuesta incorrecta. Este desafío queda bloqueado por ${worldLockoutHours.value} horas.`,
+            locked_until: lockedUntil,
+        };
+    }
+
+    step.value = "feedback";
+}
+
+function continueAfterFeedback(): void {
+    if (!quizFeedback.value?.is_correct || quizFeedback.value.level_completed) {
         backToMap();
 
         return;
     }
 
-    completing.value = true;
-
-    router.post(
-        `/world/levels/${level.id}/complete`,
-        {},
-        {
-            preserveScroll: true,
-            onFinish: () => {
-                completing.value = false;
-                backToMap();
-            },
-        },
-    );
+    selectedOption.value = null;
+    quizFeedback.value = null;
+    step.value = "quiz";
 }
 </script>
 
@@ -554,13 +659,14 @@ function completeChallenge(): void {
                                     Mapa del recorrido
                                 </p>
                                 <p class="mt-1 text-xs text-muted md:text-sm">
-                                    {{ WORLD_TOTAL_LEVELS }} niveles en 4 zonas · empiezas abajo (Welcome Village) y avanzas hasta el boss final.
+                                    {{ previewWorld.zones.length }} etapas + boss · {{ WORLD_TOTAL_LEVELS }} desafíos dentro del camino. Empiezas abajo y avanzas hasta el jefe final.
                                 </p>
                             </div>
                             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/60">
                                 <WorldMap
+                                    :world="previewWorld"
+                                    :levels="levelsForTier(previewWorld.tier)"
                                     :world-names="worldNames"
-                                    :focus-tier="previewWorld.tier"
                                     :is-unlocked="previewLocked"
                                     :is-completed="previewLocked"
                                     overview-mode
@@ -611,7 +717,7 @@ function completeChallenge(): void {
                     </p>
                 </div>
                 <button
-                    v-if="step === 'challenge'"
+                    v-if="step !== 'map'"
                     type="button"
                     class="inline-flex shrink-0 items-center gap-1 self-start text-sm font-medium text-body hover:text-heading"
                     @click="backToMap"
@@ -623,7 +729,7 @@ function completeChallenge(): void {
 
             <div
                 v-if="step === 'map'"
-                class="grid gap-4 lg:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)_minmax(16rem,20rem)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(17rem,22rem)] xl:gap-8 2xl:gap-10"
+                class="grid gap-4 lg:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] lg:items-start lg:gap-6 xl:gap-8"
             >
                 <aside class="space-y-3 lg:sticky lg:top-6 xl:top-8">
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -655,262 +761,64 @@ function completeChallenge(): void {
                     </div>
                 </aside>
 
-                <div class="min-w-0 space-y-3 lg:col-span-1">
-                    <div class="surface-card overflow-hidden p-3 sm:p-4 lg:p-5">
+                <div class="min-w-0 space-y-3">
+                    <div
+                        v-if="sessionError"
+                        role="alert"
+                        class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                    >
+                        {{ sessionError }}
+                    </div>
+
+                    <div class="surface-card p-3 sm:p-4 lg:p-5">
                         <div class="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
                             <div>
                                 <p class="text-[10px] font-semibold uppercase tracking-wide text-muted md:text-xs">
                                     Mapa de aventura
                                 </p>
                                 <p class="text-xs text-muted md:text-sm">
-                                    Recorre el camino nivel a nivel · inglés técnico y comandos Linux
+                                    Toca una etapa para responder 3 preguntas técnicas y avanzar
                                 </p>
                             </div>
                         </div>
                         <WorldMap
+                            :world="activeWorld"
+                            :levels="props.levels"
                             :world-names="worldNames"
-                            focus-tier="basico"
-                            :selected-id="mapFocusedLevelId"
                             :is-unlocked="isUnlocked"
                             :is-completed="isCompleted"
                             :is-pending="isPending"
                             :is-locked-out="isLockedOut"
-                            @select="focusMapLevel"
+                            :lockout-label="formatLockoutLabel"
+                            @start-zone="handleStartFromZone"
                         />
                     </div>
 
                     <p class="text-center text-xs text-muted md:text-sm">
-                        Selecciona un nodo para ver qué aprenderás. Inicia el desafío desde el panel de detalle.
+                        Cada desafío tiene 3 preguntas. Si fallas una, queda bloqueado {{ worldLockoutHours }} horas.
                     </p>
                 </div>
-
-                <WorldMapDetailPanel
-                    class="lg:sticky lg:top-6 xl:top-8"
-                    :level="mapFocusedLevel"
-                    :world="activeWorld"
-                    :zone="mapFocusedZone"
-                    :world-names="worldNames"
-                    :status="nodeStatusFor(mapFocusedLevelId)"
-                    :sublevel-reward="sublevelReward"
-                    @start="startFocusedLevel"
-                    @view-completed="viewFocusedCompleted"
-                />
             </div>
 
-            <div
-                v-else-if="step === 'challenge' && selectedLevel"
-                class="mx-auto w-full max-w-2xl space-y-4 lg:max-w-none lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(17rem,20rem)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] xl:gap-8 2xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] 2xl:gap-10"
-            >
-                <div class="surface-card p-5 sm:p-6 lg:p-7">
-                    <div class="mb-4 flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                            <WorldIcon
-                                :tier="selectedLevel.tier"
-                                size-class="h-3 w-3"
-                            />
-                            {{ worldNames[selectedLevel.tier] }}
-                            <template v-if="selectedZoneLabel">
-                                <span class="opacity-50">·</span>
-                                <WorldIcon
-                                    v-if="selectedLevel.is_boss"
-                                    boss
-                                    size-class="h-3 w-3"
-                                />
-                                <WorldIcon
-                                    v-else-if="selectedLevel.zone"
-                                    :zone="selectedLevel.zone"
-                                    size-class="h-3 w-3"
-                                />
-                                {{ selectedZoneLabel }}
-                            </template>
-                        </span>
-                        <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-body dark:bg-gray-800">
-                            Nivel {{ selectedLevel.id }} · {{ typeLabels[selectedLevel.type] }}
-                        </span>
-                        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-muted dark:bg-gray-800">
-                            <Clock class="h-3 w-3" />
-                            ~{{ selectedLevel.duration_minutes }} min
-                        </span>
-                    </div>
+            <WorldQuizStep
+                v-else-if="step === 'quiz' && selectedLevel && currentQuestion && shuffledOptions && questionPosition"
+                :level="selectedLevel"
+                :question="currentQuestion"
+                :zone-label="selectedZoneLabel"
+                :world-name="worldNames[selectedLevel.tier] ?? activeWorld?.name ?? 'Mundo'"
+                :question-position="questionPosition"
+                :shuffled-options="shuffledOptions.options"
+                :selected-option="selectedOption"
+                @select="selectedOption = $event"
+                @submit="submitAnswer"
+            />
 
-                    <h2 class="text-xl font-bold text-heading md:text-2xl">
-                        {{ selectedLevel.title }}
-                    </h2>
-
-                    <div class="mt-4 space-y-3">
-                        <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800/60 md:p-5">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-                                Escenario
-                            </p>
-                            <p class="mt-1 text-sm text-body md:text-base">
-                                {{ selectedLevel.scenario }}
-                            </p>
-                        </div>
-                        <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-900 dark:bg-indigo-950/30 md:p-5">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
-                                Objetivo
-                            </p>
-                            <p class="mt-1 text-sm text-body md:text-base">
-                                {{ selectedLevel.objective }}
-                            </p>
-                        </div>
-                        <div
-                            v-if="selectedLevel.gameplay"
-                            class="rounded-lg border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30 md:p-5 lg:hidden"
-                        >
-                            <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                                Gameplay
-                            </p>
-                            <p class="mt-1 text-sm text-body md:text-base">
-                                {{ selectedLevel.gameplay }}
-                            </p>
-                        </div>
-                        <div
-                            v-if="selectedZone"
-                            class="grid gap-3 sm:grid-cols-3 lg:hidden"
-                        >
-                            <div
-                                v-if="selectedZone.curriculum?.length"
-                                class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                            >
-                                <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                    Temario
-                                </p>
-                                <ul class="mt-1 space-y-0.5 text-xs text-body">
-                                    <li
-                                        v-for="item in selectedZone.curriculum"
-                                        :key="item"
-                                    >
-                                        {{ item }}
-                                    </li>
-                                </ul>
-                            </div>
-                            <div
-                                v-if="selectedZone.commands?.length"
-                                class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                            >
-                                <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                    Comandos
-                                </p>
-                                <p class="mt-1 font-mono text-xs text-body">
-                                    {{ selectedZone.commands.join(' · ') }}
-                                </p>
-                            </div>
-                            <div
-                                v-if="selectedZone.english?.length"
-                                class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                            >
-                                <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                    Inglés
-                                </p>
-                                <p class="mt-1 text-xs text-body">
-                                    {{ selectedZone.english.join(' · ') }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="isCompleted(selectedLevel.id)"
-                        class="mt-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
-                    >
-                        <CheckCircle2 class="h-5 w-5 shrink-0" />
-                        Ya completaste este desafío.
-                    </div>
-
-                    <button
-                        v-else
-                        type="button"
-                        class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60 md:w-auto md:min-w-[14rem]"
-                        :disabled="completing"
-                        @click="completeChallenge"
-                    >
-                        <CheckCircle2 class="h-4 w-4" />
-                        Marcar desafío completado
-                    </button>
-
-                    <p
-                        v-if="!isCompleted(selectedLevel.id)"
-                        class="mt-2 text-center text-xs text-muted md:text-left md:text-sm"
-                    >
-                        Practica el escenario y confirma cuando lo hayas completado.
-                    </p>
-                </div>
-
-                <aside
-                    v-if="selectedZone || selectedLevel.gameplay"
-                    class="space-y-3 lg:sticky lg:top-6 xl:top-8"
-                >
-                    <div
-                        v-if="selectedLevel.gameplay"
-                        class="hidden rounded-xl border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30 lg:block"
-                    >
-                        <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                            Gameplay
-                        </p>
-                        <p class="mt-1 text-sm text-body">
-                            {{ selectedLevel.gameplay }}
-                        </p>
-                    </div>
-
-                    <div
-                        v-if="selectedZone"
-                        class="surface-card hidden space-y-3 p-4 lg:block lg:p-5"
-                    >
-                        <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                            <WorldIcon
-                                v-if="selectedLevel.is_boss"
-                                boss
-                                size-class="h-3.5 w-3.5"
-                            />
-                            <WorldIcon
-                                v-else
-                                :zone="selectedLevel.zone"
-                                size-class="h-3.5 w-3.5"
-                            />
-                            Zona · {{ selectedZoneLabel }}
-                        </p>
-                        <div
-                            v-if="selectedZone.curriculum?.length"
-                            class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                        >
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                Temario
-                            </p>
-                            <ul class="mt-1 space-y-0.5 text-xs text-body">
-                                <li
-                                    v-for="item in selectedZone.curriculum"
-                                    :key="item"
-                                >
-                                    {{ item }}
-                                </li>
-                            </ul>
-                        </div>
-                        <div
-                            v-if="selectedZone.commands?.length"
-                            class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                        >
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                Comandos
-                            </p>
-                            <p class="mt-1 font-mono text-xs text-body">
-                                {{ selectedZone.commands.join(' · ') }}
-                            </p>
-                        </div>
-                        <div
-                            v-if="selectedZone.english?.length"
-                            class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60"
-                        >
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                                Inglés
-                            </p>
-                            <p class="mt-1 text-xs text-body">
-                                {{ selectedZone.english.join(' · ') }}
-                            </p>
-                        </div>
-                    </div>
-                </aside>
-            </div>
+            <WorldQuizFeedback
+                v-else-if="step === 'feedback' && quizFeedback"
+                :feedback="quizFeedback"
+                @continue="continueAfterFeedback"
+            />
         </template>
     </div>
 </template>
+

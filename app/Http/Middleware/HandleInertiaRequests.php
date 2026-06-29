@@ -42,6 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'tier_reset_cost' => (int) config('tokens.tier_reset_cost', 30),
                 'sublevel_complete_reward' => (int) config('tokens.sublevel_complete_reward', 10),
                 'world_unlock_cost' => (int) config('tokens.world_unlock_cost', 300),
+                'world_lockout_hours' => (int) config('world.lockout_hours', 2),
             ],
         ];
     }
